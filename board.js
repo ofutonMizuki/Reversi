@@ -3,8 +3,6 @@ const BLACK = 1;
 const WHITE = -1;
 const DEFAULT_BLACK_BOARD = 0x810000000n;
 const DEFAULT_WHITE_BOARD = 0x1008000000n;
-//const DEFAULT_BLACK_BOARD = 0x1810000000n;
-//const DEFAULT_WHITE_BOARD = 0x8000000n;
 
 class BitBoard {
     constructor(board = 0x00n) {
