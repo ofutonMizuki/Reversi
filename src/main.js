@@ -17,13 +17,13 @@ async function game(board, gamemode, _move) {
         board.changeColor();
 
         //描画
-        drowBoard(move, board);
+        drow(move, board);
         print(debugMessage);
 
         //それでもパスならゲーム終了
         if (board.isPass()) {
             //描画
-            drowBoard(move, board);
+            drow(move, board);
             print(debugMessage);
 
             //盤面の石の数を数えて返す
@@ -85,7 +85,7 @@ async function game(board, gamemode, _move) {
     board.reverse(move);
 
     //描画
-    drowBoard(move, board);
+    drow(move, board);
     print(debugMessage);
 
     setTimeout(() => {
@@ -96,21 +96,24 @@ async function game(board, gamemode, _move) {
 
 function main() {
     let board = new Board();
+    let move = { x: -1, y: -1 };
 
     //探索部のテスト用初期値 
     //let board = new Board({ black: new BitBoard(0xce849b9fefaf1228n), white: new BitBoard(0x302a646010502444n), color: BLACK, posBoard: new BitBoard() });
 
+    //ゲームモードの設定
     let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
 
-    //とりあえず初期盤面を表示する
-    drowBoard({ x: -1, y: -1 }, board);
+    //とりあえずサイズを初期化して盤面を表示する
+    drow(move, board);
 
     setTimeout(() => {
         //ゲームの開始
-        game(board, gamemode);
+        game(board, gamemode, move);
     }, 100);
 
-
+    //ウィンドウのサイズが変更されたときに描画領域も変更する
+    window.onresize = function () { resize(move, board); };
 }
 
 main();
