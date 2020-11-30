@@ -1,4 +1,4 @@
-const size = 64;
+let size = 64;
 
 //クリックされるまで待つ
 const waitClick = canvas => {
@@ -36,7 +36,38 @@ function getSelectPosition(mousePos) {
     }
 }
 
-function drowBoard(selectPosition, board) {
+function drow(selectPosition, board) {
+    return resize(selectPosition, board);
+}
+
+function resize(selectPosition, board) {
+    //サイズを取得
+    let width = document.getElementById('board').clientWidth;
+    let height = document.getElementById('board').clientHeight;
+
+    let offset = { x: 0, y: 0 };
+
+    //描画領域のサイズを設定
+    canvas.setAttribute("width", width);
+    canvas.setAttribute("height", height);
+
+    //縦横狭いほうのサイズに合わせて盤面のサイズとオフセットを変更
+    if (width < height) {
+        size = width / 8;
+        offset.x = (width - width) / 2;
+        offset.y = (height - width) / 2;
+    }
+    else {
+        size = height / 8;
+        offset.x = (width - height) / 2;
+        offset.y = (height - height) / 2;
+    }
+
+    //サイズを変更すると真っ白になるので再描画
+    drowBoard(offset, selectPosition, board);
+}
+
+function drowBoard(offset, selectPosition, board) {
     let ctx = canvas.getContext("2d");
 
     //Canvas領域を塗りつぶす
@@ -46,8 +77,8 @@ function drowBoard(selectPosition, board) {
     //盤面の描画
     for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
-            let _i = i * size;
-            let _j = j * size;
+            let _i = i * size + offset.x;
+            let _j = j * size + offset.y;
 
             //背景を描く
             ctx.fillStyle = `rgb(127, 191, 255)`;
