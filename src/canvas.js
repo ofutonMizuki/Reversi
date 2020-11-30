@@ -1,4 +1,5 @@
 let size = 64;
+let offset = { x: 0, y: 0 };
 
 //クリックされるまで待つ
 const waitClick = canvas => {
@@ -11,8 +12,8 @@ const waitClick = canvas => {
 function getMousePosition(canvas, e) {
     let rect = canvas.getBoundingClientRect();
     return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: e.clientX - rect.left - offset.x,
+        y: e.clientY - rect.top - offset.y
     };
 }
 
@@ -44,8 +45,6 @@ function resize(selectPosition, board) {
     //サイズを取得
     let width = document.getElementById('board').clientWidth;
     let height = document.getElementById('board').clientHeight;
-
-    let offset = { x: 0, y: 0 };
 
     //描画領域のサイズを設定
     canvas.setAttribute("width", width);
