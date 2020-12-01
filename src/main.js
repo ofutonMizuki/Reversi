@@ -95,6 +95,7 @@ async function game(board, gamemode, _move) {
 }
 
 function main() {
+    init_board_js();
     let board = new Board();
     let move = { x: -1, y: -1 };
 
