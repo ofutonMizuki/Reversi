@@ -113,7 +113,10 @@ function main() {
     }, 100);
 
     //ウィンドウのサイズが変更されたときに描画領域も変更する
-    window.onresize = function () { resize(move, board); };
+    window.onresize = function () {
+        resize(move, board);
+        print(debugMessage);
+    };
 }
 
 //エラーを検知したときにメッセージを吐きます
