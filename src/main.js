@@ -122,4 +122,6 @@ window.onerror = function (message, file, lineNo, colNo, error) {
         file + ': ' + lineNo + ': ' + colNo + '\n' + (error != null ? error.stack : 'エラーオブジェクトは存在しません'));
 }
 
-main();
+window.onload = function () {
+    main();
+}
