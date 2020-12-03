@@ -95,6 +95,7 @@ async function game(board, gamemode, _move) {
 }
 
 function main() {
+    init_board_js();
     let board = new Board();
     let move = { x: -1, y: -1 };
 
@@ -125,6 +126,16 @@ window.onerror = function (message, file, lineNo, colNo, error) {
         file + ': ' + lineNo + ': ' + colNo + '\n' + (error != null ? error.stack : 'エラーオブジェクトは存在しません'));
 }
 
+<<<<<<< HEAD
 window.onload = function () {
     main();
 }
+=======
+//エラーを検知したときにメッセージを吐きます
+window.onerror = function (message, file, lineNo, colNo, error) {
+    alert(message + '\n' +
+        file + ': ' + lineNo + ': ' + colNo + '\n' + (error != null ? error.stack : 'エラーオブジェクトは存在しません'));
+}
+
+main();
+>>>>>>> parent of 7865b0d (Revert "合法手の生成の高速化")
