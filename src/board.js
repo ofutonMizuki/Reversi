@@ -4,16 +4,6 @@ const WHITE = -1;
 const DEFAULT_BLACK_BOARD = 0x810000000n;
 const DEFAULT_WHITE_BOARD = 0x1008000000n;
 
-let table = new Array(64);
-
-function init_board_js() {
-    let hash = 0x03F566ED27179461n;
-    for (let i = 0; i < 64; i++) {
-        table[hash >> 58n] = i;
-        hash <<= 1n;
-    }
-}
-
 class BitBoard {
     constructor(board = 0x00n) {
         this.board = board;
@@ -33,22 +23,6 @@ class BitBoard {
     cr2bitboard(col, row) // col (0..7), row (0..7) に対応するビットボード生成
     {
         this.board = 0x8000000000000000n >> (BigInt(col) + BigInt(row) * 8n);
-    }
-
-    GetNumberOfTrailingZeros(x) {
-        if (x == 0) return 64n;
-
-        let y = (x & -x);
-        let i = ((y * 0x03F566ED27179461n) >> 58n);
-        return table[i];
-    }
-
-    bitboard2cr() {
-        let x = 63 - this.GetNumberOfTrailingZeros(this.board);
-        return {
-            x: (x % 8),
-            y: (Math.floor(x / 8))
-        };
     }
 
     isZero() {
@@ -79,30 +53,6 @@ class BitBoard {
         }
 
         return popcount64(Number(this.board & 0xFFFFFFFFn), Number((this.board >> 32n) & 0xFFFFFFFFn))
-    }
-
-    rotate() {
-        let b = this.board;
-        b =
-            ((b << 1n) & 0xAA00AA00AA00AA00n) |
-            ((b >> 1n) & 0x0055005500550055n) |
-            ((b >> 8n) & 0x00AA00AA00AA00AAn) |
-            ((b << 8n) & 0x5500550055005500n);
-
-        b =
-            ((b << 2n) & 0xCCCC0000CCCC0000n) |
-            ((b >> 2n) & 0x0000333300003333n) |
-            ((b >> 16n) & 0x0000CCCC0000CCCCn) |
-            ((b << 16n) & 0x3333000033330000n);
-
-        b =
-            ((b << 4n) & 0xF0F0F0F000000000n) |
-            ((b >> 4n) & 0x000000000F0F0F0Fn) |
-            ((b >> 32n) & 0x00000000F0F0F0F0n) |
-            ((b << 32n) & 0x0F0F0F0F00000000n);
-
-        this.board = b;
-        return this;
     }
 }
 
@@ -179,18 +129,6 @@ class Board {
     isPos(position) {
         let x = position.x, y = position.y;
         return this.posBoard.isSet(x, y);
-    }
-
-    getNextPositionList() {
-        let x = this.posBoard.clone();
-        let positionList = new Array();
-        while (x.board != 0) {
-            positionList.push(x.bitboard2cr());
-
-            x.board &= x.board - 1n;
-        }
-
-        return positionList;
     }
 
     //指定した座標に石をおいて反転します。
