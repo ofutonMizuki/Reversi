@@ -82,14 +82,9 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
     }
 
     //合法手の生成
-    for (let i = 0; i < 8; i++) {
-        for (let j = 0; j < 8; j++) {
-            let position = { x: i, y: j };
-            //もし置ける場所なら候補手を生成
-            if (board.isPos(position)) {
-                board.next.push(createNextBoard(board, position));
-            }
-        }
+    let positionList = board.getNextPositionList();
+    for(let i = 0; i < positionList.length; i++){
+        board.next.push(createNextBoard(board, positionList[i]));
     }
 
 
