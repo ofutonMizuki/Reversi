@@ -113,6 +113,8 @@ class Board {
             this.white = new BitBoard(DEFAULT_WHITE_BOARD);
             this.color = BLACK;
             this.posBoard = new BitBoard();
+
+            this.getPosBoard();
         }
         else {
             this.black = board.black.clone();
@@ -120,8 +122,6 @@ class Board {
             this.color = board.color;
             this.posBoard = board.posBoard.clone();
         }
-
-        this.getPosBoard();
     }
 
     clone() {
