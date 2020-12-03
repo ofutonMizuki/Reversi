@@ -129,9 +129,3 @@ window.onerror = function (message, file, lineNo, colNo, error) {
 window.onload = function () {
     main();
 }
-
-//エラーを検知したときにメッセージを吐きます
-window.onerror = function (message, file, lineNo, colNo, error) {
-    alert(message + '\n' +
-        file + ': ' + lineNo + ': ' + colNo + '\n' + (error != null ? error.stack : 'エラーオブジェクトは存在しません'));
-}
