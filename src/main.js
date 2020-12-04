@@ -52,7 +52,7 @@ async function game(board, gamemode, move) {
         //コンピュータープレイヤー
         case COM_PLAYER:
             var time = performance.now();
-            searchWorker.postMessage({ board: board.clone(), maxDepth: 12 });
+            searchWorker.postMessage({ board: board.clone(), maxDepth: 6 });
             let result = (await waitSearch(searchWorker)).data;
             debugMessage = (performance.now() - time);
             move.x = result.position.x;
