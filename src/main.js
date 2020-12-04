@@ -12,12 +12,7 @@ const waitSearch = search => {
     });
 };
 
-async function game(board, gamemode, _move) {
-    let move = { x: -1, y: -1 };
-    if (_move != undefined) {
-        move = _move;
-    }
-
+async function game(board, gamemode, move) {
     //置ける場所を求める(実際はすでに求められてると思うけれど念の為)
     board.getPosBoard();
 
@@ -57,10 +52,11 @@ async function game(board, gamemode, _move) {
         //コンピュータープレイヤー
         case COM_PLAYER:
             var time = performance.now();
-            searchWorker.postMessage({board: board.clone(), maxDepth: 6});
+            searchWorker.postMessage({ board: board.clone(), maxDepth: 12 });
             let result = (await waitSearch(searchWorker)).data;
             debugMessage = (performance.now() - time);
-            move = result.position;
+            move.x = result.position.x;
+            move.y = result.position.y;
             //await waitClick(canvas)
             break;
 
@@ -86,10 +82,8 @@ async function game(board, gamemode, _move) {
     //石を置いてひっくり返す
     board.reverse(move);
 
-    setTimeout(() => {
-        //game()を再帰呼び出しする
-        game(board, gamemode, move);
-    }, 0);
+    //game()を再帰呼び出しする
+    game(board, gamemode, move);
 }
 
 function main() {
@@ -99,10 +93,10 @@ function main() {
 
     //探索部のテスト用初期値 
     // board = new Board({
-    //     black: (new BitBoard(0xce849b9fefaf1228n)).rotate().rotate(), 
-    //     white: (new BitBoard(0x302a646010502444n)).rotate().rotate(), 
-    //     color: BLACK, 
-    //     posBoard: new BitBoard() 
+    //     black: (new BitBoard(0xce849b9fefaf1228n)).rotate().rotate(),
+    //     white: (new BitBoard(0x302a646010502444n)).rotate().rotate(),
+    //     color: WHITE,
+    //     posBoard: new BitBoard()
     // });
 
     //ゲームモードの設定
