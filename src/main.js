@@ -1,7 +1,16 @@
 const canvas = document.getElementById("field");
 const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
+let searchWorker = new Worker('worker.js');
+
 let debugMessage = "";
+
+//探索終了まで待つ関数
+const waitSearch = search => {
+    return new Promise(resolve => {
+        search.addEventListener("message", resolve);
+    });
+};
 
 async function game(board, gamemode, _move) {
     let move = { x: -1, y: -1 };
@@ -16,15 +25,8 @@ async function game(board, gamemode, _move) {
     if (board.isPass()) {
         board.changeColor();
 
-        //描画
-        drow(move, board);
-        print(debugMessage);
-
         //それでもパスならゲーム終了
         if (board.isPass()) {
-            //描画
-            drow(move, board);
-            print(debugMessage);
 
             //盤面の石の数を数えて返す
             let result = board.count();
@@ -55,10 +57,10 @@ async function game(board, gamemode, _move) {
         //コンピュータープレイヤー
         case COM_PLAYER:
             var time = performance.now();
-            let result = search(board.clone(), 6);
+            searchWorker.postMessage({board: board.clone(), maxDepth: 6});
+            let result = (await waitSearch(searchWorker)).data;
             debugMessage = (performance.now() - time);
             move = result.position;
-            //debugMessage = result.score;
             //await waitClick(canvas)
             break;
 
@@ -84,10 +86,6 @@ async function game(board, gamemode, _move) {
     //石を置いてひっくり返す
     board.reverse(move);
 
-    //描画
-    drow(move, board);
-    print(debugMessage);
-
     setTimeout(() => {
         //game()を再帰呼び出しする
         game(board, gamemode, move);
@@ -110,19 +108,17 @@ function main() {
     //ゲームモードの設定
     let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
 
-    //とりあえずサイズを初期化して盤面を表示する
-    drow(move, board);
-
     setTimeout(() => {
         //ゲームの開始
         game(board, gamemode, move);
     }, 100);
 
-    //ウィンドウのサイズが変更されたときに描画領域も変更する
-    window.onresize = function () {
-        resize(move, board);
+    //1/60秒間隔で画面更新する
+    setInterval(() => {
+        //描画
+        drow(move, board);
         print(debugMessage);
-    };
+    }, 1000 / 60);
 }
 
 //エラーを検知したときにメッセージを吐きます
