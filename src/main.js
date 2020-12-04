@@ -100,7 +100,12 @@ function main() {
     let move = { x: -1, y: -1 };
 
     //探索部のテスト用初期値 
-    //let board = new Board({ black: new BitBoard(0xce849b9fefaf1228n), white: new BitBoard(0x302a646010502444n), color: BLACK, posBoard: new BitBoard() });
+    // board = new Board({
+    //     black: (new BitBoard(0xce849b9fefaf1228n)).rotate().rotate(), 
+    //     white: (new BitBoard(0x302a646010502444n)).rotate().rotate(), 
+    //     color: BLACK, 
+    //     posBoard: new BitBoard() 
+    // });
 
     //ゲームモードの設定
     let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
