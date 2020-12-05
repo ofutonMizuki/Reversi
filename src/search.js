@@ -5,6 +5,7 @@ class tBoard extends Board {
         super(board);
         this.prev = null;
         this.next = new Array();
+        this.numberOfChildNode = 0;
         this.n = 0;
         this.score = 0;
         this.position = { x: -1, y: -1 };
@@ -14,6 +15,7 @@ class tBoard extends Board {
         let newBoard = new tBoard(super.clone());
         newBoard.prev = this.prev;
         newBoard.next = this.next.concat();
+        newBoard.numberOfChildNode = this.numberOfChildNode;
         newBoard.n = this.n;
         newBoard.score = this.score;
         newBoard.position = Object.assign({}, this.position);
@@ -46,7 +48,8 @@ function search(_board, maxDepth) {
 
     return {
         position: board.position,
-        score: board.score
+        score: board.score,
+        numberOfNode: board.numberOfChildNode
     }
 }
 
@@ -86,6 +89,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
     for(let i = 0; i < positionList.length; i++){
         board.next.push(createNextBoard(board, positionList[i]));
     }
+    board.numberOfChildNode = positionList.length;
 
 
     if (color == board.color) {
@@ -94,6 +98,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
         for (let i = 0; i < board.next.length; i++) {
             let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
+            board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score < score) {
                 board.score = score;
@@ -115,6 +120,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
         for (let i = 0; i < board.next.length; i++) {
             let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
+            board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score > score) {
                 board.score = score;

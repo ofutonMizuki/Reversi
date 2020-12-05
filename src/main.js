@@ -3,7 +3,7 @@ const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
 let searchWorker = new Worker('worker.js');
 
-let debugMessage = "";
+let debug = {};
 
 //探索終了まで待つ関数
 const waitSearch = search => {
@@ -51,12 +51,22 @@ async function game(board, gamemode, move) {
             break;
         //コンピュータープレイヤー
         case COM_PLAYER:
+            //思考時間の計測を始める
             var time = performance.now();
+            //思考を別スレッドで開始する
             searchWorker.postMessage({ board: board.clone(), maxDepth: 6 });
+            
+            //思考結果が返ってくるまで待つ
             let result = (await waitSearch(searchWorker)).data;
-            debugMessage = (performance.now() - time);
+
+            //
             move.x = result.position.x;
             move.y = result.position.y;
+
+            //デバッグ用
+            debug.thinkTime = (performance.now() - time);
+            debug.score = result.score;
+            debug.numberOfNode = result.numberOfNode;
             //await waitClick(canvas)
             break;
 
@@ -111,7 +121,7 @@ function main() {
     setInterval(() => {
         //描画
         drow(move, board);
-        print(debugMessage);
+        print(debug);
     }, 1000 / 60);
 }
 

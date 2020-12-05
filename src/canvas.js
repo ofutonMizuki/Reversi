@@ -146,9 +146,14 @@ function drowBoard(offset, selectPosition, board) {
     }
 }
 
-function print(message) {
+function print(debug) {
     let ctx = canvas.getContext("2d");
     ctx.fillStyle = 'black';
+    ctx.textAlign = "start";
+    ctx.textBaseline = "top";
     ctx.font = `${size / 8}px 'M PLUS Rounded 1c'`;
-    ctx.fillText(message, 0, ctx.canvas.height - size / 2);
+    ctx.fillText(`思考時間: ${Math.floor(debug.thinkTime)}[ms]`, 0, ctx.canvas.height - size);
+    ctx.fillText(`score: ${debug.score}`, 0, ctx.canvas.height - size + (size / 8));
+    ctx.fillText(`node: ${debug.numberOfNode}`, 0, ctx.canvas.height - size + 2 * (size / 8));
+    ctx.fillText(`探索速度: ${debug.numberOfNode / (debug.thinkTime / 1000)}`, 0, ctx.canvas.height - size + 3 * (size / 8));
 }
