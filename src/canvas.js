@@ -38,14 +38,31 @@ function getSelectPosition(mousePos) {
 }
 
 function drow(selectPosition, board) {
-    return resize(selectPosition, board);
+    resize(selectPosition, board);
+
+    let ctx = canvas.getContext("2d");
+    let newBoard = board.clone();
+
+    //Canvas領域を塗りつぶす
+    ctx.fillStyle = `rgb(31, 31, 31)`;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    //サイズを変更すると真っ白になるので再描画
+    drowBoard(offset, selectPosition, board);
+
+    //もしゲームエンドなら結果を表示します
+    if (newBoard.isPass()) {
+        newBoard.changeColor();
+        if (newBoard.isPass()) {
+            drowResult(newBoard);
+        }
+    }
 }
 
-function resize(selectPosition, board) {
+function resize() {
     //サイズを取得
     let width = document.getElementById('board').clientWidth;
     let height = document.getElementById('board').clientHeight;
-    let newBoard = board.clone();
 
     //描画領域のサイズを設定
     canvas.setAttribute("width", width);
@@ -62,23 +79,12 @@ function resize(selectPosition, board) {
         offset.x = (width - height) / 2;
         offset.y = (height - height) / 2;
     }
-
-    //サイズを変更すると真っ白になるので再描画
-    drowBoard(offset, selectPosition, board);
-
-    //もしゲームエンドなら結果を表示します
-    if (newBoard.isPass()) {
-        newBoard.changeColor();
-        if (newBoard.isPass()) {
-            drowResult(newBoard);
-        }
-    }
 }
 
-function drowResult(board){
+function drowResult(board) {
     let ctx = canvas.getContext("2d");
     ctx.fillStyle = `rgb(31, 31, 31, 0.9)`;
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillRect(offset.x, offset.y, size * 8, size * 8);
 
     let result = board.count();
 
@@ -88,27 +94,26 @@ function drowResult(board){
     ctx.fillStyle = 'white';
     ctx.textBaseline = "middle";
 
+    //盤面の中心座標を計算
+    let center = {x: (offset.x + size * 4), y: (offset.y + size * 4)};
+
     //石数を表示
-    ctx.fillText(`黒: ${result.black}, 白: ${result.white}`, ctx.canvas.width / 2, ctx.canvas.height / 2 - size, ctx.canvas.width);
+    ctx.fillText(`黒: ${result.black}, 白: ${result.white}`, center.x, center.y - size);
 
     //どちらが勝ったかを表示する
-    if(result.black == result.white){
-        ctx.fillText(`引き分け`, ctx.canvas.width / 2, ctx.canvas.height / 2 + size, ctx.canvas.width);
+    if (result.black == result.white) {
+        ctx.fillText(`引き分け`, center.x, center.y + size);
     }
-    else if(result.black > result.white){
-        ctx.fillText(`黒の勝ち`, ctx.canvas.width / 2, ctx.canvas.height / 2 + size, ctx.canvas.width);
+    else if (result.black > result.white) {
+        ctx.fillText(`黒の勝ち`, center.x, center.y + size);
     }
-    else if(result.black < result.white){
-        ctx.fillText(`白の勝ち`, ctx.canvas.width / 2, ctx.canvas.height / 2 + size, ctx.canvas.width);
+    else if (result.black < result.white) {
+        ctx.fillText(`白の勝ち`, center.x, center.y + size);
     }
 }
 
 function drowBoard(offset, selectPosition, board) {
     let ctx = canvas.getContext("2d");
-
-    //Canvas領域を塗りつぶす
-    ctx.fillStyle = `rgb(31, 31, 31)`;
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     //盤面の描画
     for (let i = 0; i < 8; i++) {
@@ -148,12 +153,20 @@ function drowBoard(offset, selectPosition, board) {
 
 function print(debug) {
     let ctx = canvas.getContext("2d");
+    let fontSize = size / 8;
+    let basePosition = {x: 0, y: ctx.canvas.height - size};
+
     ctx.fillStyle = 'black';
     ctx.textAlign = "start";
     ctx.textBaseline = "top";
-    ctx.font = `${size / 8}px 'M PLUS Rounded 1c'`;
-    ctx.fillText(`思考時間: ${Math.floor(debug.thinkTime)}[ms]`, 0, ctx.canvas.height - size);
-    ctx.fillText(`score: ${debug.score}`, 0, ctx.canvas.height - size + (size / 8));
-    ctx.fillText(`node: ${debug.numberOfNode}`, 0, ctx.canvas.height - size + 2 * (size / 8));
-    ctx.fillText(`探索速度: ${debug.numberOfNode / (debug.thinkTime / 1000)}`, 0, ctx.canvas.height - size + 3 * (size / 8));
+    ctx.font = `${fontSize}px 'M PLUS Rounded 1c'`;
+
+    function drowText(message, position){
+        ctx.fillText(message, basePosition.x, basePosition.y + position * fontSize);
+    }
+
+    drowText(`思考時間: ${Math.floor(debug.thinkTime)}[ms]`, 0);
+    drowText(`score: ${debug.score}`, 1);
+    drowText(`node: ${debug.numberOfNode}`, 2);
+    drowText(`探索速度: ${Math.floor(debug.numberOfNode / (debug.thinkTime / 1000))}[node/s]`, 3);
 }
