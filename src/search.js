@@ -32,6 +32,7 @@ function createNextBoard(board, position) {
     //
     newBoard.next = [];
     newBoard.prev = board;
+    newBoard.numberOfChildNode = 0;
     newBoard.n += 1;
     newBoard.position = position;
 
@@ -86,9 +87,6 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
     //合法手の生成
     let positionList = board.getNextPositionList();
-    for(let i = 0; i < positionList.length; i++){
-        board.next.push(createNextBoard(board, positionList[i]));
-    }
     board.numberOfChildNode = positionList.length;
 
 
@@ -96,7 +94,8 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
         let prevBoard = board.prev;
         board.score = -INFINITE_SCORE;
 
-        for (let i = 0; i < board.next.length; i++) {
+        for (let i = 0; i < positionList.length; i++) {
+            board.next.push(createNextBoard(board, positionList[i]));
             let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
@@ -118,7 +117,8 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
         let prevBoard = board.prev;
         board.score = INFINITE_SCORE;
 
-        for (let i = 0; i < board.next.length; i++) {
+        for (let i = 0; i < positionList.length; i++) {
+            board.next.push(createNextBoard(board, positionList[i]));
             let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
