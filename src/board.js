@@ -111,8 +111,7 @@ class BitBoard {
 
         for (let i = 0n; i < 64; i++) {
             if (mask & 0x01n) {
-                let _b = (this.board >> (i - count));
-                b |= _b & (0x01n << count);
+                b |= (this.board >> (i - count)) & (0x01n << count);
                 count++;
             }
             mask >>= 1n;
