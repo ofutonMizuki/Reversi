@@ -104,6 +104,26 @@ class BitBoard {
         this.board = b;
         return this;
     }
+
+    pext(mask) {
+        let b = 0n;
+        let count = 0n;
+
+        for (let i = 0n; i < 64; i++) {
+            if (mask & 0x01n) {
+                let _b = (this.board >> (i - count));
+                b |= _b & (0x01n << count);
+                count++;
+            }
+            mask >>= 1n;
+
+            if(mask == 0n){
+                break;
+            }
+        }
+
+        return b;
+    }
 }
 
 class Board {
