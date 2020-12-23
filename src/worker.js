@@ -4,6 +4,7 @@ importScripts('search.js');
 
 self.addEventListener('message', async (message) => {
     init_board_js();
+    initWeight();
     let board = message.data.board;
     let result = search(new Board({
         black: new BitBoard(board.black.board),
