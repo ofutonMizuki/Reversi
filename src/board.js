@@ -109,16 +109,11 @@ class BitBoard {
         let b = 0n;
         let count = 0n;
 
-        for (let i = 0n; i < 64; i++) {
-            if (mask & 0x01n) {
-                b |= (this.board >> (i - count)) & (0x01n << count);
-                count++;
-            }
-            mask >>= 1n;
+        while(mask != 0n){
+            b |= (this.board >> (BigInt(this.GetNumberOfTrailingZeros(mask)) - count)) & (0x01n << count);
 
-            if(mask == 0n){
-                break;
-            }
+            mask &= mask - 1n;
+            count++;
         }
 
         return b;
