@@ -106,17 +106,14 @@ class BitBoard {
     }
 
     pext(mask) {
-        let b = 0n;
-        let count = 0n;
-
-        while(mask != 0n){
-            b |= (this.board >> (BigInt(this.GetNumberOfTrailingZeros(mask)) - count)) & (0x01n << count);
-
+        let res = 0n;
+        let board = this.board;
+        for (let bb = 1n; mask; bb += bb) {
+            if (board & mask & -mask)
+            res |= bb;
             mask &= mask - 1n;
-            count++;
         }
-
-        return b;
+        return res;
     }
 }
 
