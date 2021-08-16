@@ -43,9 +43,9 @@ function createNextBoard(board, position) {
     return newBoard;
 }
 
-function search(_board, maxDepth) {
+function search(_board, maxDepth, eval) {
     let board = new tBoard(_board);
-    alphaBeta(board, maxDepth - 1, board.color, -INFINITE_SCORE, INFINITE_SCORE);
+    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE);
 
     return {
         position: board.position,
@@ -54,7 +54,7 @@ function search(_board, maxDepth) {
     }
 }
 
-function alphaBeta(board, maxDepth, color, alpha, beta) {
+function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
     //もしパスならターンチェンジ
     if (board.isPass()) {
         board.changeColor();
@@ -79,7 +79,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
     //もし探索上限に達したら評価値を求める
     if (maxDepth < board.n) {
-        board.score = evaluate(board, color);
+        board.score = eval.evaluate(board, color);
         //board.score = Math.random();
 
         return board.score;
@@ -96,7 +96,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i]));
-            let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
+            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score < score) {
@@ -119,7 +119,7 @@ function alphaBeta(board, maxDepth, color, alpha, beta) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i]));
-            let score = alphaBeta(board.next[i], maxDepth, color, alpha, beta);
+            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score > score) {
