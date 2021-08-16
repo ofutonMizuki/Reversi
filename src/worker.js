@@ -3,7 +3,7 @@ importScripts('evaluate.js');
 importScripts('search.js');
 
 let initialized = false;
-let e = new Eval("http://othello.ofuton.net/eval/eval");
+let e = new Eval("https://othello.ofuton.net/eval/eval");
 
 self.addEventListener('message', async (message) => {
     if (initialized == false) {
