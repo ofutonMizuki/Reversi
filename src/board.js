@@ -185,7 +185,7 @@ class Board {
         let x = this.posBoard.clone();
         let positionList = new Array();
         while (x.board != 0) {
-            positionList.push(x.bitboard2cr());
+            positionList.push({p: x.bitboard2cr(), s: 0});
 
             x.board &= x.board - 1n;
         }

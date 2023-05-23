@@ -88,14 +88,24 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
     //合法手の生成
     let positionList = board.getNextPositionList();
     board.numberOfChildNode = positionList.length;
-
+    const sortDepth = Math.floor(maxDepth / 2);
 
     if (color == board.color) {
         let prevBoard = board.prev;
         board.score = -INFINITE_SCORE;
 
+        if (board.n < sortDepth) {
+            const cronedBoard = board.clone();
+            for (let i = 0; i < positionList.length; i++) {
+                cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 2, color, eval, alpha, beta);
+            }
+
+            positionList.sort((a, b) => b.s - a.s);
+        }
+
         for (let i = 0; i < positionList.length; i++) {
-            board.next.push(createNextBoard(board, positionList[i]));
+            board.next.push(createNextBoard(board, positionList[i].p));
             let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
@@ -117,8 +127,18 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
         let prevBoard = board.prev;
         board.score = INFINITE_SCORE;
 
+        if (board.n < sortDepth) {
+            const cronedBoard = board.clone();
+            for (let i = 0; i < positionList.length; i++) {
+                cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 2, color, eval, alpha, beta);
+            }
+
+            positionList.sort((a, b) => a.s - b.s);
+        }
+
         for (let i = 0; i < positionList.length; i++) {
-            board.next.push(createNextBoard(board, positionList[i]));
+            board.next.push(createNextBoard(board, positionList[i].p));
             let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
