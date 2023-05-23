@@ -45,7 +45,7 @@ function createNextBoard(board, position) {
 
 function search(_board, maxDepth, eval) {
     let board = new tBoard(_board);
-    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE);
+    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE, true);
 
     return {
         position: board.position,
@@ -54,7 +54,7 @@ function search(_board, maxDepth, eval) {
     }
 }
 
-function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
+function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
     //もしパスならターンチェンジ
     if (board.isPass()) {
         board.changeColor();
@@ -88,17 +88,19 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
     //合法手の生成
     let positionList = board.getNextPositionList();
     board.numberOfChildNode = positionList.length;
-    const sortDepth = Math.floor(maxDepth / 2);
+    //ソートをする深さを設定(深さはなんとなくで設定)
+    const sortDepth = moFlag ? Math.floor(maxDepth / 1.5) : maxDepth;
 
     if (color == board.color) {
         let prevBoard = board.prev;
         board.score = -INFINITE_SCORE;
 
-        if (board.n < sortDepth) {
+        //枝刈りのためのソートをする場合ソート
+        if (board.n < sortDepth && moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 2, color, eval, alpha, beta);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
             }
 
             positionList.sort((a, b) => b.s - a.s);
@@ -106,7 +108,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
+            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score < score) {
@@ -127,11 +129,12 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
         let prevBoard = board.prev;
         board.score = INFINITE_SCORE;
 
-        if (board.n < sortDepth) {
+        //枝刈りのためのソートをする場合ソート
+        if (board.n < sortDepth && moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 2, color, eval, alpha, beta);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
             }
 
             positionList.sort((a, b) => a.s - b.s);
@@ -139,7 +142,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta);
+            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score > score) {

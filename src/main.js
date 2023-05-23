@@ -54,7 +54,7 @@ async function game(board, gamemode, move) {
             //思考時間の計測を始める
             var time = performance.now();
             //思考を別スレッドで開始する
-            searchWorker.postMessage({ board: board.clone(), maxDepth: 6 });
+            searchWorker.postMessage({ board: board.clone(), maxDepth: 8 });
             
             //思考結果が返ってくるまで待つ
             let result = (await waitSearch(searchWorker)).data;
