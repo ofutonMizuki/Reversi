@@ -3,10 +3,11 @@ importScripts('evaluate.js');
 importScripts('search.js');
 
 let initialized = false;
-let e = new Eval("https://othello.ofuton.net/eval/eval");
+let e = new Eval();
 
 self.addEventListener('message', async (message) => {
     if (initialized == false) {
+        await e.read("https://othello.ofuton.net/eval/eval");
         init_board_js();
         initialized = true;
     }
