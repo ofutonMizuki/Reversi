@@ -9,6 +9,7 @@ class tBoard extends Board {
         this.n = 0;
         this.score = 0;
         this.position = { x: -1, y: -1 };
+        this.isPerfect = false;
     }
 
     clone() {

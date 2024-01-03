@@ -81,6 +81,24 @@ function resize() {
     }
 }
 
+function drowThink(){
+    let ctx = canvas.getContext("2d");
+    ctx.fillStyle = `rgb(31, 31, 31, 0.9)`;
+    ctx.fillRect(offset.x, offset.y, size * 8, size * 8);
+
+    //フォントサイズ、位置の設定
+    ctx.font = `${size}px 'M PLUS Rounded 1c'`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = 'white';
+    ctx.textBaseline = "middle";
+    
+    //盤面の中心座標を計算
+    let center = {x: (offset.x + size * 4), y: (offset.y + size * 4)};
+
+    //石数を表示
+    ctx.fillText(`AI思考中`, center.x, center.y);
+}
+
 function drowResult(board) {
     let ctx = canvas.getContext("2d");
     ctx.fillStyle = `rgb(31, 31, 31, 0.9)`;

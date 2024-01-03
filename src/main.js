@@ -5,6 +5,8 @@ let searchWorker = new Worker('worker.js');
 
 let debug = {};
 
+let isTinking = false;
+
 //探索終了まで待つ関数
 const waitSearch = search => {
     return new Promise(resolve => {
@@ -51,17 +53,21 @@ async function game(board, gamemode, move, depth) {
             break;
         //コンピュータープレイヤー
         case COM_PLAYER:
+            isTinking = true;
+
             //思考時間の計測を始める
             var time = performance.now();
             //思考を別スレッドで開始する
             searchWorker.postMessage({ board: board.clone(), maxDepth: depth });
-            
+
             //思考結果が返ってくるまで待つ
             let result = (await waitSearch(searchWorker)).data;
 
             //
             move.x = result.position.x;
             move.y = result.position.y;
+
+            isTinking = false;
 
             //デバッグ用
             debug.thinkTime = (performance.now() - time);
@@ -99,7 +105,10 @@ async function game(board, gamemode, move, depth) {
 function main() {
     let board = new Board();
     let move = { x: -1, y: -1 };
-    let depth = location.depth ? location.depth : 1;
+
+    let url = new URL(window.location.href);
+    let params = url.searchParams;
+    let depth = params.get("depth") ? params.get("depth") : 1;
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -114,13 +123,16 @@ function main() {
 
     setTimeout(() => {
         //ゲームの開始
-        game(board, gamemode, move, depth);
+        game(board, gamemode, move, Number(depth));
     }, 100);
 
     //1/60秒間隔で画面更新する
     setInterval(() => {
         //描画
         drow(move, board);
+        if(isTinking){
+            drowThink();
+        }
         print(debug);
     }, 1000 / 60);
 }
