@@ -12,7 +12,7 @@ const waitSearch = search => {
     });
 };
 
-async function game(board, gamemode, move) {
+async function game(board, gamemode, move, depth) {
     //置ける場所を求める(実際はすでに求められてると思うけれど念の為)
     board.getPosBoard();
 
@@ -54,7 +54,7 @@ async function game(board, gamemode, move) {
             //思考時間の計測を始める
             var time = performance.now();
             //思考を別スレッドで開始する
-            searchWorker.postMessage({ board: board.clone(), maxDepth: 8 });
+            searchWorker.postMessage({ board: board.clone(), maxDepth: depth });
             
             //思考結果が返ってくるまで待つ
             let result = (await waitSearch(searchWorker)).data;
@@ -93,12 +93,13 @@ async function game(board, gamemode, move) {
     board.reverse(move);
 
     //game()を再帰呼び出しする
-    game(board, gamemode, move);
+    game(board, gamemode, move, depth);
 }
 
 function main() {
     let board = new Board();
     let move = { x: -1, y: -1 };
+    let depth = location.depth ? location.depth : 1;
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -113,7 +114,7 @@ function main() {
 
     setTimeout(() => {
         //ゲームの開始
-        game(board, gamemode, move);
+        game(board, gamemode, move, depth);
     }, 100);
 
     //1/60秒間隔で画面更新する
