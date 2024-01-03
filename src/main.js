@@ -57,8 +57,27 @@ async function game(board, gamemode, move, depth) {
 
             //思考時間の計測を始める
             var time = performance.now();
-            //思考を別スレッドで開始する
-            searchWorker.postMessage({ board: board.clone(), maxDepth: depth });
+
+            //もし終盤なら探索を深くする
+            let count = board.count();
+            if (64 - (count.black + count.white) < depth * 1.5) {
+                //思考を別スレッドで開始する
+                searchWorker.postMessage(
+                    {
+                        board: board.clone(),
+                        maxDepth: Math.floor(depth * 1.5)
+                    }
+                );
+            }
+            else {
+                //思考を別スレッドで開始する
+                searchWorker.postMessage(
+                    {
+                        board: board.clone(),
+                        maxDepth: depth
+                    }
+                );
+            }
 
             //思考結果が返ってくるまで待つ
             let result = (await waitSearch(searchWorker)).data;
@@ -130,7 +149,7 @@ function main() {
     setInterval(() => {
         //描画
         drow(move, board);
-        if(isThinking){
+        if (isThinking) {
             drowThink();
         }
         print(debug);
