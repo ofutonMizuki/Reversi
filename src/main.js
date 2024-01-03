@@ -5,7 +5,7 @@ let searchWorker = new Worker('worker.js');
 
 let debug = {};
 
-let isTinking = false;
+let isThinking = false;
 
 //探索終了まで待つ関数
 const waitSearch = search => {
@@ -53,7 +53,7 @@ async function game(board, gamemode, move, depth) {
             break;
         //コンピュータープレイヤー
         case COM_PLAYER:
-            isTinking = true;
+            isThinking = true;
 
             //思考時間の計測を始める
             var time = performance.now();
@@ -67,7 +67,7 @@ async function game(board, gamemode, move, depth) {
             move.x = result.position.x;
             move.y = result.position.y;
 
-            isTinking = false;
+            isThinking = false;
 
             //デバッグ用
             debug.thinkTime = (performance.now() - time);
@@ -130,7 +130,7 @@ function main() {
     setInterval(() => {
         //描画
         drow(move, board);
-        if(isTinking){
+        if(isThinking){
             drowThink();
         }
         print(debug);
