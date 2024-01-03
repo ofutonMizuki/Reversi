@@ -4,14 +4,11 @@ const WHITE = -1;
 const DEFAULT_BLACK_BOARD = 0x810000000n;
 const DEFAULT_WHITE_BOARD = 0x1008000000n;
 
-let table = new Array(64);
-
-function init_board_js() {
-    let hash = 0x03F566ED27179461n;
-    for (let i = 0; i < 64; i++) {
-        table[hash >> 58n] = i;
-        hash <<= 1n;
-    }
+const TABLE = new Array(64);
+let hash = 0x03F566ED27179461n;
+for (let i = 0; i < 64; i++) {
+    TABLE[hash >> 58n] = i;
+    hash <<= 1n;
 }
 
 class BitBoard {
@@ -40,7 +37,7 @@ class BitBoard {
 
         let y = (x & -x);
         let i = ((y * 0x03F566ED27179461n) >> 58n);
-        return table[i];
+        return TABLE[i];
     }
 
     bitboard2cr() {
@@ -185,7 +182,7 @@ class Board {
         let x = this.posBoard.clone();
         let positionList = new Array();
         while (x.board != 0) {
-            positionList.push({p: x.bitboard2cr(), s: 0});
+            positionList.push({ p: x.bitboard2cr(), s: 0 });
 
             x.board &= x.board - 1n;
         }

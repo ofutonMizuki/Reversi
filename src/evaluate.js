@@ -1,35 +1,41 @@
 class Eval {
-    constructor(path) {
+    constructor() {
         this.board1 = new Array();
         this.board2 = new Array();
         this.space = new Array();
         this.cb = new Array();
-        let _read = async function (path) {
-            let response = await fetch(path);
-            let text = await response.text();
-            return text.split('\n');
-        }
-        let lines = _read(path).then(value => {
-            for (let i = 0; i < 65; i++) {
-                this.board1.push(new Array());
-                this.board2.push(new Array());
-                this.space.push(new Array());
-                this.cb.push(new Array());
-                for (let j = 0; j < 64; j++) {
-                    this.board1[i].push(Number(value[i * 256 + j]));
-                }
-                for (let j = 0; j < 64; j++) {
-                    this.board2[i].push(Number(value[i * 256 + j + 64]));
-                }
-                for (let j = 0; j < 64; j++) {
-                    this.space[i].push(Number(value[i * 256 + j + 128]));
-                }
-                for (let j = 0; j < 64; j++) {
-                    this.cb[i].push(Number(value[i * 256 + j + 192]));
-                }
+    }
+
+    async init(path) {
+        let response = await fetch(path);
+        let text = await response.text()
+        text = text.split('\n');
+        for (let i = 0; i < 65; i++) {
+            this.board1.push(new Array());
+            this.board2.push(new Array());
+            this.space.push(new Array());
+            this.cb.push(new Array());
+            for (let j = 0; j < 64; j++) {
+                this.board1[i].push(
+                    Number(text[i * 256 + j])
+                );
             }
-        });
-        console.log(this.board1)
+            for (let j = 0; j < 64; j++) {
+                this.board2[i].push(
+                    Number(text[i * 256 + j + 64])
+                );
+            }
+            for (let j = 0; j < 64; j++) {
+                this.space[i].push(
+                    Number(text[i * 256 + j + 128])
+                );
+            }
+            for (let j = 0; j < 64; j++) {
+                this.cb[i].push(
+                    Number(text[i * 256 + j + 192])
+                );
+            }
+        }
     }
 
     _eval(_board1, _board2, _cb) {
