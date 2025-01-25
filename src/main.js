@@ -33,24 +33,6 @@ async function game(board, gamemode, move, depth) {
 
     //プレイヤーのゲームモードによって分岐する
     switch ((board.color == BLACK) ? gamemode.black : gamemode.white) {
-        //人間プレイヤー
-        case MANUAL_PLAYER:
-            //置ける場所をクリックするまで無限ループ
-            while (1) {
-                //マウスの位置を取得(waitClick()はクリックされるまでブロックする)
-                let mousePos = getMousePosition(canvas, await waitClick(canvas));
-
-                //マウスの位置から盤面の座標に変換
-                let selectPos = getSelectPosition(mousePos);
-
-                //もし置けるならループから抜け出す
-                if (board.isPos(selectPos)) {
-                    move.x = selectPos.x;
-                    move.y = selectPos.y;
-                    break;
-                }
-            }
-            break;
         //コンピュータープレイヤー
         case COM_PLAYER:
             isThinking = true;
@@ -138,30 +120,10 @@ function main() {
     // });
 
     //ゲームモードの設定
-    let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
+    let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
 
     setTimeout(() => {
         //ゲームの開始
         game(board, gamemode, move, Number(depth));
     }, 100);
-
-    //1/60秒間隔で画面更新する
-    setInterval(() => {
-        //描画
-        drow(move, board);
-        if (isThinking) {
-            drowThink();
-        }
-        print(debug);
-    }, 1000 / 60);
-}
-
-//エラーを検知したときにメッセージを吐きます
-window.onerror = function (message, file, lineNo, colNo, error) {
-    alert(message + '\n' +
-        file + ': ' + lineNo + ': ' + colNo + '\n' + (error != null ? error.stack : 'エラーオブジェクトは存在しません'));
-}
-
-window.onload = function () {
-    main();
 }
