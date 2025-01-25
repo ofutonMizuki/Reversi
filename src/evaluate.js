@@ -1,3 +1,6 @@
+import { NeuralNetwork } from "./nn.js";
+import { BLACK } from "./board.js";
+
 class Eval {
     constructor() {
         this.neuralNetwork = new NeuralNetwork(256, [32], 1);
@@ -38,7 +41,7 @@ class Eval {
         for (let i = 0; i < 64; i++) {
             boardArray[i + 192] = (posBoard >> i) & 0x01;
         }
-        let result = this.neuralNetwork.predict(boardArray);
+        let result = this.neuralNetwork.predict(boardArray)[0];
 
         //手番からみたスコアを計算する
         if (color == board.color) {
@@ -49,3 +52,4 @@ class Eval {
         }
     }
 }
+export { Eval };

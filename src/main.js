@@ -1,18 +1,13 @@
-const canvas = document.getElementById("field");
+import { Board, BLACK, BitBoard } from './board.js';
+import { search } from './search.js';
+import { Eval } from './evaluate.js';
+
 const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
-let searchWorker = new Worker('worker.js');
-
+const e = new Eval();
 let debug = {};
 
 let isThinking = false;
-
-//探索終了まで待つ関数
-const waitSearch = search => {
-    return new Promise(resolve => {
-        search.addEventListener("message", resolve);
-    });
-};
 
 async function game(board, gamemode, move, depth) {
     //置ける場所を求める(実際はすでに求められてると思うけれど念の為)
@@ -27,6 +22,7 @@ async function game(board, gamemode, move, depth) {
 
             //盤面の石の数を数えて返す
             let result = board.count();
+            console.log(result);
             return result;
         }
     }
@@ -42,39 +38,22 @@ async function game(board, gamemode, move, depth) {
 
             //もし終盤なら探索を深くする
             let count = board.count();
-            if (64 - (count.black + count.white) < depth * 1.5) {
-                //思考を別スレッドで開始する
-                searchWorker.postMessage(
+            let result = search(
+                new Board(
                     {
-                        board: board.clone(),
-                        maxDepth: Math.floor(depth * 1.5)
+                        black: new BitBoard(board.black.board),
+                        white: new BitBoard(board.white.board),
+                        color: board.color,
+                        posBoard: new BitBoard(board.posBoard.board)
                     }
-                );
-            }
-            else {
-                //思考を別スレッドで開始する
-                searchWorker.postMessage(
-                    {
-                        board: board.clone(),
-                        maxDepth: depth
-                    }
-                );
-            }
-
-            //思考結果が返ってくるまで待つ
-            let result = (await waitSearch(searchWorker)).data;
+                ), (64 - (count.black + count.white) < depth * 1.5) ? Math.floor(depth * 1.5) : depth, e
+            );
 
             //
             move.x = result.position.x;
             move.y = result.position.y;
+            console.log(`result: ${JSON.stringify(result)}\nx: ${move.x}\ny: ${move.y}`);
 
-            isThinking = false;
-
-            //デバッグ用
-            debug.thinkTime = (performance.now() - time);
-            debug.score = result.score;
-            debug.numberOfNode = result.numberOfNode;
-            //await waitClick(canvas)
             break;
 
         //ランダムプレイヤー
@@ -107,9 +86,7 @@ function main() {
     let board = new Board();
     let move = { x: -1, y: -1 };
 
-    let url = new URL(window.location.href);
-    let params = url.searchParams;
-    let depth = params.get("depth") ? params.get("depth") : 1;
+    let depth = 8;
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -127,3 +104,5 @@ function main() {
         game(board, gamemode, move, Number(depth));
     }, 100);
 }
+
+main();

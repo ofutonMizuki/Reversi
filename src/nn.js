@@ -384,3 +384,5 @@ class Matrix {
         console.table(this.data);
     }
 }
+
+export { NeuralNetwork };

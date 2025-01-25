@@ -392,3 +392,5 @@ class Board {
         return rev.board;
     }
 }
+
+export { Board, BitBoard, SPACE, BLACK, WHITE, DEFAULT_BLACK_BOARD, DEFAULT_WHITE_BOARD };

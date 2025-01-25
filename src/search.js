@@ -1,3 +1,4 @@
+import { Board, BLACK, BitBoard } from './board.js';
 const INFINITE_SCORE = 32768;
 
 class tBoard extends Board {
@@ -44,9 +45,9 @@ function createNextBoard(board, position) {
     return newBoard;
 }
 
-function search(_board, maxDepth, eval) {
+function search(_board, maxDepth, e) {
     let board = new tBoard(_board);
-    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE, true);
+    alphaBeta(board, maxDepth - 1, board.color, e, -INFINITE_SCORE, INFINITE_SCORE, true);
 
     return {
         position: board.position,
@@ -55,7 +56,7 @@ function search(_board, maxDepth, eval) {
     }
 }
 
-function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
+function alphaBeta(board, maxDepth, color, e, alpha, beta, moFlag) {
     //もしパスならターンチェンジ
     if (board.isPass()) {
         board.changeColor();
@@ -80,7 +81,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
 
     //もし探索上限に達したら評価値を求める
     if (maxDepth < board.n) {
-        board.score = eval.evaluate(board, color);
+        board.score = e.evaluate(board, color);
         //board.score = Math.random();
 
         return board.score;
@@ -101,7 +102,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, e, alpha, beta, false);
             }
 
             positionList.sort((a, b) => b.s - a.s);
@@ -109,7 +110,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
+            let score = alphaBeta(board.next[i], maxDepth, color, e, alpha, beta, moFlag);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score < score) {
@@ -135,7 +136,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, e, alpha, beta, false);
             }
 
             positionList.sort((a, b) => a.s - b.s);
@@ -143,7 +144,7 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
 
         for (let i = 0; i < positionList.length; i++) {
             board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
+            let score = alphaBeta(board.next[i], maxDepth, color, e, alpha, beta, moFlag);
             board.numberOfChildNode += board.next[i].numberOfChildNode;
 
             if (board.score > score) {
@@ -165,3 +166,4 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
     board.next = [];
     return board.score;
 }
+export { search };
