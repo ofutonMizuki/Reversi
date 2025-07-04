@@ -132,6 +132,14 @@ class Board {
         return newBoard;
     }
 
+    rotate() {
+        this.black.rotate();
+        this.white.rotate();
+        this.posBoard.rotate();
+
+        return this;
+    }
+
     //指定した座標の色を教えてくれます
     getColor(position) {
         let x = position.x, y = position.y;

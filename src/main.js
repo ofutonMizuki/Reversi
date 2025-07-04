@@ -27,7 +27,7 @@ function game(board, gamemode, move, depth) {
 
     // 序盤10手はランダムで指す
     let stoneCount = board.count();
-    if (stoneCount.black + stoneCount.white < 14) {
+    if (stoneCount.black + stoneCount.white < 10) {
         gamemode.black = RANDOM_PLAYER;
         gamemode.white = RANDOM_PLAYER;
     } else {
@@ -105,29 +105,31 @@ function main() {
     // });
 
     //ゲームモードの設定
-    let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-    let board = new Board();
-    let move = { x: -1, y: -1 };
-    game(board, gamemode, move, Number(depth))
-    console.dir(resultArray);
+    // let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+    // let board = new Board();
+    // let move = { x: -1, y: -1 };
+    // game(board, gamemode, move, Number(depth))
+    // console.dir(resultArray);
 
-    // while (true) {
-    //     for (let i = 0; i < 100; i++) {
-    //         resultArray = [];
-    //         let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-    //         let depth = 1;
-    //         let board = new Board();
-    //         let move = { x: -1, y: -1 };
-    //         let resultScore = game(board, gamemode, move, Number(depth));
+    while (true) {
+        for (let i = 0; i < 10; i++) {
+            resultArray = [];
+            let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+            let depth = 1 + Math.floor(Math.random() * 2);  
+            let board = new Board();
+            let move = { x: -1, y: -1 };
+            let resultScore = game(board, gamemode, move, Number(depth));
 
-    //         for (let j = 0; j < resultArray.length; j++) {
-    //             e.train(resultArray[j % resultArray.length].board, resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
-    //         }
-    //         //e.train(board, board.color, resultScore.black - resultScore.white);
-    //     }
-    //     console.dir(resultArray);
-    //     e.save(`model`);
-    // }
+            for (let j = 0; j < resultArray.length; j++) {
+                for (let r = 0; r < 4; r++) {
+                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
+                }
+            }
+            //e.train(board, board.color, resultScore.black - resultScore.white);
+        }
+        console.dir(resultArray);
+        e.save(`model`);
+    }
 }
 
 main();
