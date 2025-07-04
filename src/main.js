@@ -5,11 +5,9 @@ import { Eval } from './evaluate.js';
 const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
 const e = new Eval();
-let debug = {};
+let resultArray = [];
 
-let isThinking = false;
-
-async function game(board, gamemode, move, depth) {
+function game(board, gamemode, move, depth) {
     //置ける場所を求める(実際はすでに求められてると思うけれど念の為)
     board.getPosBoard();
 
@@ -22,20 +20,25 @@ async function game(board, gamemode, move, depth) {
 
             //盤面の石の数を数えて返す
             let result = board.count();
-            console.log(result);
+            //console.log(result);
             return result;
         }
+    }
+
+    // 序盤10手はランダムで指す
+    let stoneCount = board.count();
+    if (stoneCount.black + stoneCount.white < 14) {
+        gamemode.black = RANDOM_PLAYER;
+        gamemode.white = RANDOM_PLAYER;
+    } else {
+        gamemode.black = COM_PLAYER;
+        gamemode.white = COM_PLAYER;
     }
 
     //プレイヤーのゲームモードによって分岐する
     switch ((board.color == BLACK) ? gamemode.black : gamemode.white) {
         //コンピュータープレイヤー
         case COM_PLAYER:
-            isThinking = true;
-
-            //思考時間の計測を始める
-            var time = performance.now();
-
             //もし終盤なら探索を深くする
             let count = board.count();
             let result = search(
@@ -49,11 +52,13 @@ async function game(board, gamemode, move, depth) {
                 ), (64 - (count.black + count.white) < depth * 1.5) ? Math.floor(depth * 1.5) : depth, e
             );
 
-            //
             move.x = result.position.x;
             move.y = result.position.y;
-            console.log(`result: ${JSON.stringify(result)}\nx: ${move.x}\ny: ${move.y}`);
 
+            resultArray.push({
+                board: board.clone(),
+                score: result.score,
+            });
             break;
 
         //ランダムプレイヤー
@@ -70,23 +75,26 @@ async function game(board, gamemode, move, depth) {
                     break;
                 }
             }
+            resultArray.push({
+                board: board.clone(),
+                score: 0,
+            });
             break;
         default:
             break;
     }
 
+
     //石を置いてひっくり返す
     board.reverse(move);
 
     //game()を再帰呼び出しする
-    game(board, gamemode, move, depth);
+    return game(board, gamemode, move, depth);
 }
 
 function main() {
-    let board = new Board();
-    let move = { x: -1, y: -1 };
-
-    let depth = 8;
+    let depth = 4;
+    e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -98,11 +106,28 @@ function main() {
 
     //ゲームモードの設定
     let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+    let board = new Board();
+    let move = { x: -1, y: -1 };
+    game(board, gamemode, move, Number(depth))
+    console.dir(resultArray);
 
-    setTimeout(() => {
-        //ゲームの開始
-        game(board, gamemode, move, Number(depth));
-    }, 100);
+    // while (true) {
+    //     for (let i = 0; i < 100; i++) {
+    //         resultArray = [];
+    //         let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+    //         let depth = 1;
+    //         let board = new Board();
+    //         let move = { x: -1, y: -1 };
+    //         let resultScore = game(board, gamemode, move, Number(depth));
+
+    //         for (let j = 0; j < resultArray.length; j++) {
+    //             e.train(resultArray[j % resultArray.length].board, resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
+    //         }
+    //         //e.train(board, board.color, resultScore.black - resultScore.white);
+    //     }
+    //     console.dir(resultArray);
+    //     e.save(`model`);
+    // }
 }
 
 main();
