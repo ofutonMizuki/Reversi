@@ -94,5 +94,11 @@ class Eval {
         });
         console.log(`Models loaded from ${path}`);
     }
+
+    async init(url) {
+        for (let i = 0; i < 65; i++) {
+            await this.neuralNetworks[i].init(`${url}/model_${i}.json`);
+        }
+        console.log("Eval initialized with neural networks.");
+    }
 }
-export { Eval };

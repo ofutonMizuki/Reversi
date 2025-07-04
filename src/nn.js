@@ -1,4 +1,4 @@
-import fs from 'fs';
+//import fs from 'fs';
 class NeuralNetwork {
     /**
      * ニューラルネットワークを初期化します。
@@ -259,6 +259,24 @@ class NeuralNetwork {
             }
             */
         }
+    }
+
+    /**
+     * 非同期でWeb上のJSONファイルから重みとバイアスを読み込みます（ブラウザ用）。
+     * @param {string} url 読み込むjsonファイルのURL
+     * @returns {Promise<void>}
+     */
+    async init(url) {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch model: ${url}`);
+        }
+        const data = await response.json();
+        this.weights = data.weights.map(w => new Matrix(w.length, w[0].length));
+        for (let i = 0; i < this.weights.length; i++) {
+            this.weights[i].data = data.weights[i];
+        }
+        // バイアスも必要ならここで同様に復元
     }
 }
 
