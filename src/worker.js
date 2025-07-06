@@ -4,9 +4,14 @@ importScripts('evaluate.js');
 importScripts('search.js');
 
 let e = new Eval(); //evalは予約語なので使えません
+let init = false;
 
 self.addEventListener('message', async (message) => {
-    await e.init("https://othello.ofuton.net/eval/");
+    if (init === false) {
+        init = true;
+        // 初期化処理
+        await e.init("https://othello.ofuton.net/eval/");
+    }
     let board = message.data.board;
     let result = search(
         new Board(
