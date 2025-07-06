@@ -5,7 +5,7 @@ class Eval {
     constructor() {
         this.neuralNetworks = new Array();
         for(let i = 0; i < 65; i++){
-            this.neuralNetworks.push(new NeuralNetwork(192, [8], 1));
+            this.neuralNetworks.push(new NeuralNetwork(192, [16, 16], 1));
         }
         console.dir(this.neuralNetworks);
     }
