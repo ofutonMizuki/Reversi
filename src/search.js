@@ -100,7 +100,7 @@ function alphaBeta(board, maxDepth, color, e, alpha, beta, moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], board.n, color, e, alpha, beta, false);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], 0, color, e, alpha, beta, false);
             }
 
             positionList.sort((a, b) => b.s - a.s);
@@ -134,7 +134,7 @@ function alphaBeta(board, maxDepth, color, e, alpha, beta, moFlag) {
             const cronedBoard = board.clone();
             for (let i = 0; i < positionList.length; i++) {
                 cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], board.n, color, e, alpha, beta, false);
+                positionList[i].s = alphaBeta(cronedBoard.next[i], 0, color, e, alpha, beta, false);
             }
 
             positionList.sort((a, b) => a.s - b.s);
