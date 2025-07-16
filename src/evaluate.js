@@ -1,8 +1,9 @@
 class Eval {
+    d = 65;
     constructor() {
         this.neuralNetworks = new Array();
-        for(let i = 0; i < 65; i++){
-            this.neuralNetworks.push(new NeuralNetwork(192, [16, 16], 1));
+        for (let i = 0; i < 65 / this.d; i++) {
+            this.neuralNetworks.push(new NeuralNetwork(192, [16, 16, 16, 16], 1));
         }
         console.dir(this.neuralNetworks);
     }
@@ -32,7 +33,7 @@ class Eval {
             boardArray[i + 128n] = Number((posBoard >> i) & 0x01n);
         }
         let count = board.count();
-        let result = this.neuralNetworks[count.black + count.white].predict(boardArray)[0] * 64;
+        let result = this.neuralNetworks[Math.floor((count.black + count.white) / this.d)].predict(boardArray)[0] * 64;
 
         //手番からみたスコアを計算する
         if (color == board.color) {
@@ -43,7 +44,7 @@ class Eval {
         }
     }
 
-    train(board, color, score){
+    train(board, color, score) {
         let board1, board2;
         if (board.color == BLACK) {
             board1 = board.black.board;
@@ -71,7 +72,7 @@ class Eval {
         // console.log("score", score);
 
         let count = board.count();
-        this.neuralNetworks[count.black + count.white].train(
+        this.neuralNetworks[Math.floor((count.black + count.white) / this.d)].train(
             [
                 ...Array.from({ length: 64 }, (_, i) => Number((board1 >> BigInt(i)) & 0x01n)),
                 ...Array.from({ length: 64 }, (_, i) => Number((board2 >> BigInt(i)) & 0x01n)),
@@ -96,7 +97,7 @@ class Eval {
     }
 
     async init(url) {
-        for (let i = 0; i < 65; i++) {
+        for (let i = 0; i < 65 / this.d; i++) {
             await this.neuralNetworks[i].init(`${url}/model_${i}.json`);
         }
         console.log("Eval initialized with neural networks.");
