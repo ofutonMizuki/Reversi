@@ -49,7 +49,7 @@ function game(board, gamemode, move, depth) {
                         color: board.color,
                         posBoard: new BitBoard(board.posBoard.board)
                     }
-                ), (64 - (count.black + count.white) < depth * 1.5) ? Math.floor(depth * 1.5) : depth, e
+                ), (64 - (count.black + count.white) < 4) ? 4 : depth, e
             );
 
             move.x = result.position.x;
@@ -77,7 +77,7 @@ function game(board, gamemode, move, depth) {
             }
             resultArray.push({
                 board: board.clone(),
-                score: 0,
+                score: 0
             });
             break;
         default:
@@ -93,8 +93,8 @@ function game(board, gamemode, move, depth) {
 }
 
 function main() {
-    let depth = 4;
-    e.load(`model`);
+    let depth = 0;
+    //e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -115,19 +115,36 @@ function main() {
         for (let i = 0; i < 10; i++) {
             resultArray = [];
             let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-            let depth = 1 + Math.floor(Math.random() * 2);  
+            let depth = 1;
             let board = new Board();
             let move = { x: -1, y: -1 };
             let resultScore = game(board, gamemode, move, Number(depth));
+            let result = 0;
+            if (resultScore.black > resultScore.white) {
+                result = 1;
+            } else if (resultScore.black < resultScore.white) {
+                result = -1;
+            }
 
             for (let j = 0; j < resultArray.length; j++) {
                 for (let r = 0; r < 4; r++) {
                     e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
+                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, result);
                 }
             }
             //e.train(board, board.color, resultScore.black - resultScore.white);
+
         }
-        console.dir(resultArray);
+        resultArray = [];
+        let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+        let depth = 1;
+        let board = new Board();
+        let move = { x: -1, y: -1 };
+        let resultScore = game(board, gamemode, move, Number(depth));
+        for (let i = 0; i < resultArray.length; i++) {
+            console.log(`score: ${resultArray[i].board.color == BLACK ? resultArray[i].score : -resultArray[i].score}, black: ${resultArray[i].board.count().black}, white: ${resultArray[i].board.count().white}`);
+        }
+        //console.dir(resultArray);
         e.save(`model`);
     }
 }

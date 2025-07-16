@@ -1,5 +1,5 @@
 import { Board, BLACK, BitBoard } from './board.js';
-const INFINITE_SCORE = 32768;
+const INFINITE_SCORE = Math.pow(2, 32) - 1;
 
 class tBoard extends Board {
     constructor(board) {
