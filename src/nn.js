@@ -18,26 +18,30 @@ class NeuralNetwork {
 
         // 入力層 - 最初の隠れ層の重みとバイアスを初期化
         this.weights.push(new Matrix(this.hiddenLayers[0], this.inputNodes));
-        // this.biases.push(new Matrix(this.hiddenLayers[0], 1));
+        this.biases.push(new Matrix(this.hiddenLayers[0], 1));
 
         // 隠れ層 - 隠れ層 / 隠れ層 - 出力層の重みとバイアスを初期化
         for (let i = 0; i < this.hiddenLayers.length - 1; i++) {
             this.weights.push(new Matrix(this.hiddenLayers[i + 1], this.hiddenLayers[i]));
-            // this.biases.push(new Matrix(this.hiddenLayers[i + 1], 1));
+            this.biases.push(new Matrix(this.hiddenLayers[i + 1], 1));
         }
 
         // 最後の隠れ層 - 出力層の重みとバイアスを初期化
         this.weights.push(new Matrix(this.outputNodes, this.hiddenLayers[this.hiddenLayers.length - 1]));
-        // this.biases.push(new Matrix(this.outputNodes, 1));
+        this.biases.push(new Matrix(this.outputNodes, 1));
 
-        // 重みとバイアスの初期値をランダムに設定
-        for (let i = 0; i < this.weights.length; i++) {
-            this.weights[i].randomize();
-            // this.biases[i].randomize();
+        // 重みとバイアスの初期値をHe初期化で設定
+        // 各重み行列のfan_in（入力ノード数）を渡す
+        this.weights[0].randomize(this.inputNodes);
+        for (let i = 1; i < this.weights.length; i++) {
+            this.weights[i].randomize(this.weights[i].cols);
+        }
+        for (let i = 0; i < this.biases.length; i++) {
+            this.biases[i].randomize(1);
         }
 
-        // 学習率
-        this.learningRate = 0.001;
+        // 学習率（さらに発散抑制のため低めに）
+        this.learningRate = 0.000001;
 
         // Adamオプティマイザのパラメータ
         this.beta1 = 0.9;
@@ -48,8 +52,8 @@ class NeuralNetwork {
         // Adamのモーメント推定値
         this.m_weights = this.weights.map(w => new Matrix(w.rows, w.cols));
         this.v_weights = this.weights.map(w => new Matrix(w.rows, w.cols));
-        this.m_biases = [];//this.biases.map(b => new Matrix(b.rows, b.cols));
-        this.v_biases = [];//this.biases.map(b => new Matrix(b.rows, b.cols));
+        this.m_biases = this.biases.map(b => new Matrix(b.rows, b.cols));
+        this.v_biases = this.biases.map(b => new Matrix(b.rows, b.cols));
     }
 
     /**
@@ -58,8 +62,9 @@ class NeuralNetwork {
      * @param {number} x 入力値
      * @return {number} ReLU関数の出力値
      */
+    // ClippedReLU: 0～1の範囲でクリップ
     relu(x) {
-        return Math.max(0.1 * x, x);
+        return Math.max(0, Math.min(1, x));
     }
 
     /**
@@ -68,8 +73,9 @@ class NeuralNetwork {
      * @param {number} y ReLU関数の出力値
      * @return {number} ReLU関数の微分の出力値
      */
+    // ClippedReLUの微分
     drelu(y) {
-        return y > 0 ? 1 : 0.1;
+        return (y > 0 && y < 1) ? 1 : 0;
     }
 
     /**
@@ -102,21 +108,29 @@ class NeuralNetwork {
         // 入力値をMatrixオブジェクトに変換
         let inputs = Matrix.fromArray(input_array);
 
-        // 隠れ層の計算
+        // 隠れ層の計算（残差接続は同じノード数の層のみ）
         let hidden = Matrix.multiply(this.weights[0], inputs);
-        // hidden.add(this.biases[0]);
+        hidden.add(this.biases[0]);
         hidden.map(this.relu);
+        let prev = hidden;
 
         for (let i = 1; i < this.hiddenLayers.length; i++) {
-            hidden = Matrix.multiply(this.weights[i], hidden);
-            // hidden.add(this.biases[i]);
-            hidden.map(this.relu);
+            let h = Matrix.multiply(this.weights[i], prev);
+            // h.add(this.biases[i]);
+            h.map(this.relu);
+            // 残差接続：前層とノード数が同じ場合のみスケール1で加算
+            if (h.rows === prev.rows && h.cols === prev.cols) {
+                let scaled = Matrix.map(prev, x => x * 1);
+                h.add(scaled);
+            }
+            prev = h;
         }
+        hidden = prev;
 
-        // 出力層の計算
+        // 出力層の計算（恒等関数）
         let output = Matrix.multiply(this.weights[this.weights.length - 1], hidden);
-        // output.add(this.biases[this.biases.length - 1]);
-        output.map(this.tanh);
+        output.add(this.biases[this.biases.length - 1]);
+        // 恒等関数なので何も適用しない
 
         // 出力値を配列に変換して返す
         return output.toArray();
@@ -133,22 +147,29 @@ class NeuralNetwork {
         let inputs = Matrix.fromArray(input_array);
         let targets = Matrix.fromArray(target_array);
 
-        // 隠れ層の計算 (predictと同じ)
+        // 隠れ層の計算（残差接続は同じノード数の層のみ）
         let hiddens = [];
-        hiddens.push(Matrix.multiply(this.weights[0], inputs));
-        // hiddens[0].add(this.biases[0]);
-        hiddens[0].map(this.relu);
+        let h0 = Matrix.multiply(this.weights[0], inputs);
+        h0.add(this.biases[0]);
+        h0.map(this.relu);
+        hiddens.push(h0);
 
         for (let i = 1; i < this.hiddenLayers.length; i++) {
-            hiddens.push(Matrix.multiply(this.weights[i], hiddens[i - 1]));
-            // hiddens[i].add(this.biases[i]);
-            hiddens[i].map(this.relu);
+            let h = Matrix.multiply(this.weights[i], hiddens[i - 1]);
+            h.add(this.biases[i]);
+            h.map(this.relu);
+            // 残差接続：前層とノード数が同じ場合のみスケール0.1で加算
+            if (h.rows === hiddens[i - 1].rows && h.cols === hiddens[i - 1].cols) {
+                let scaled = Matrix.map(hiddens[i - 1], x => x * 1);
+                h.add(scaled);
+            }
+            hiddens.push(h);
         }
 
-        // 出力層の計算 (predictと同じ)
+        // 出力層の計算（恒等関数）
         let outputs = Matrix.multiply(this.weights[this.weights.length - 1], hiddens[hiddens.length - 1]);
-        // outputs.add(this.biases[this.biases.length - 1]);
-        outputs.map(this.tanh);
+        outputs.add(this.biases[this.biases.length - 1]);
+        // 恒等関数なので何も適用しない
 
         // タイムステップをインクリメント
         this.t++;
@@ -165,7 +186,8 @@ class NeuralNetwork {
         }
 
         // 重みとバイアスの更新 (出力層)
-        let gradients_ho = Matrix.map(outputs, this.dtanh);
+        // 恒等関数の微分は1
+        let gradients_ho = Matrix.map(outputs, () => 1);
         gradients_ho.multiply(output_errors);
         let hidden_t = Matrix.transpose(hiddens[hiddens.length - 1]);
         let weights_ho_deltas = Matrix.multiply(gradients_ho, hidden_t);
@@ -210,7 +232,6 @@ class NeuralNetwork {
         this.weights[i].add(delta_w);
 
         // バイアスの更新
-        /*
         this.m_biases[i].multiply(this.beta1);
         this.m_biases[i].add(Matrix.map(bias_deltas, x => x * (1 - this.beta1)));
         this.v_biases[i].multiply(this.beta2);
@@ -221,7 +242,6 @@ class NeuralNetwork {
 
         let delta_b = Matrix.map(v_hat_b, (val, r, c) => this.learningRate * m_hat_b.data[r][c] / (Math.sqrt(val) + this.epsilon));
         this.biases[i].add(delta_b);
-        */
     }
 
     /**
@@ -232,7 +252,7 @@ class NeuralNetwork {
     save(filename) {
         let data = {
             weights: this.weights.map(w => w.data),
-            // biases: this.biases.map(b => b.data)
+            biases: this.biases.map(b => b.data)
         };
         let json = JSON.stringify(data);
         fs.writeFileSync(filename, json, 'utf8');
@@ -249,15 +269,13 @@ class NeuralNetwork {
         if (json) {
             let data = JSON.parse(json);
             this.weights = data.weights.map(w => new Matrix(w.length, w[0].length));
-            // this.biases = data.biases.map(b => new Matrix(b.length, b[0].length));
+            this.biases = data.biases.map(b => new Matrix(b.length, b[0].length));
             for (let i = 0; i < this.weights.length; i++) {
                 this.weights[i].data = data.weights[i];
             }
-            /*
             for (let i = 0; i < this.biases.length; i++) {
                 this.biases[i].data = data.biases[i];
             }
-            */
         }
     }
 
@@ -297,12 +315,19 @@ class Matrix {
     }
 
     /**
-     * 行列の各要素をランダムな値で初期化します。
+     * 行列の各要素をHe初期化でランダムな値に設定します。
+     * @param {number} fan_in 入力ノード数
      */
-    randomize() {
+    randomize(fan_in) {
+        // He初期化: N(0, sqrt(2/fan_in)) 
+        const std = Math.sqrt(2 / (fan_in || 1)) * 0.01;
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
-                this.data[i][j] = Math.random() * 0.2 - 0.1; // -1から1までのランダムな値
+                // Box-Muller法で正規分布に従う乱数を生成
+                let u = 1 - Math.random();
+                let v = 1 - Math.random();
+                let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                this.data[i][j] = z * std;
             }
         }
     }
