@@ -127,7 +127,7 @@ function main() {
 
     let url = new URL(window.location.href);
     let params = url.searchParams;
-    let depth = params.get("depth") ? params.get("depth") : 8;
+    let depth = params.get("depth") ? params.get("depth") : 6;
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -138,7 +138,7 @@ function main() {
     // });
 
     //ゲームモードの設定
-    let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+    let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
 
     setTimeout(() => {
         //ゲームの開始

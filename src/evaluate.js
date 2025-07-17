@@ -1,6 +1,3 @@
-import { NeuralNetwork } from "./nn.js";
-import { BLACK } from "./board.js";
-
 class Eval {
     d = 16;
     constructor() {
