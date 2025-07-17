@@ -26,31 +26,31 @@ function game(board, gamemode, move, depth) {
     }
 
     // 序盤10手はランダムで指す
-    let stoneCount = board.count();
-    if (stoneCount.black + stoneCount.white < 10) {
-        gamemode.black = RANDOM_PLAYER;
-        gamemode.white = RANDOM_PLAYER;
-    } else {
-        gamemode.black = COM_PLAYER;
-        gamemode.white = COM_PLAYER;
-    }
+    // let stoneCount = board.count();
+    // if (stoneCount.black + stoneCount.white < 14) {
+    //     gamemode.black = RANDOM_PLAYER;
+    //     gamemode.white = RANDOM_PLAYER;
+    // } else {
+    //     gamemode.black = COM_PLAYER;
+    //     gamemode.white = COM_PLAYER;
+    // }
 
+    //もし終盤なら探索を深くする
+    let count = board.count();
+    let result = search(
+        new Board(
+            {
+                black: new BitBoard(board.black.board),
+                white: new BitBoard(board.white.board),
+                color: board.color,
+                posBoard: new BitBoard(board.posBoard.board)
+            }
+        ), (64 - (count.black + count.white) < 6) ? 6 : depth, e
+    );
     //プレイヤーのゲームモードによって分岐する
     switch ((board.color == BLACK) ? gamemode.black : gamemode.white) {
         //コンピュータープレイヤー
         case COM_PLAYER:
-            //もし終盤なら探索を深くする
-            let count = board.count();
-            let result = search(
-                new Board(
-                    {
-                        black: new BitBoard(board.black.board),
-                        white: new BitBoard(board.white.board),
-                        color: board.color,
-                        posBoard: new BitBoard(board.posBoard.board)
-                    }
-                ), (64 - (count.black + count.white) < 4) ? 4 : depth, e
-            );
 
             move.x = result.position.x;
             move.y = result.position.y;
@@ -77,7 +77,7 @@ function game(board, gamemode, move, depth) {
             }
             resultArray.push({
                 board: board.clone(),
-                score: 0
+                score: result.score,
             });
             break;
         default:
@@ -94,7 +94,7 @@ function game(board, gamemode, move, depth) {
 
 function main() {
     let depth = 0;
-    //e.load(`model`);
+    e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -114,7 +114,7 @@ function main() {
     while (true) {
         for (let i = 0; i < 10; i++) {
             resultArray = [];
-            let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+            let gamemode = { black: RANDOM_PLAYER, white: RANDOM_PLAYER };
             let depth = 1;
             let board = new Board();
             let move = { x: -1, y: -1 };
@@ -126,10 +126,17 @@ function main() {
                 result = -1;
             }
 
-            for (let j = 0; j < resultArray.length; j++) {
-                for (let r = 0; r < 4; r++) {
-                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
-                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, result);
+            for (let r = 0; r < 4; r++) {
+                for (let j = 0; j < resultArray.length; j++) {
+                    let score = resultArray[j].score;
+                    if (resultArray[j].board.color == BLACK) {
+                        score = score;
+                    } else {
+                        score = -score;
+                    }
+                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
+                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, score);
+                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, (resultScore.black - resultScore.white + score) / 2);
                 }
             }
             //e.train(board, board.color, resultScore.black - resultScore.white);
@@ -137,7 +144,7 @@ function main() {
         }
         resultArray = [];
         let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-        let depth = 1;
+        let depth = 3;
         let board = new Board();
         let move = { x: -1, y: -1 };
         let resultScore = game(board, gamemode, move, Number(depth));
