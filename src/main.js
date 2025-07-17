@@ -25,18 +25,13 @@ function game(board, gamemode, move, depth) {
         }
     }
 
-    // 序盤10手はランダムで指す
-    // let stoneCount = board.count();
-    // if (stoneCount.black + stoneCount.white < 14) {
-    //     gamemode.black = RANDOM_PLAYER;
-    //     gamemode.white = RANDOM_PLAYER;
-    // } else {
-    //     gamemode.black = COM_PLAYER;
-    //     gamemode.white = COM_PLAYER;
-    // }
-
     //もし終盤なら探索を深くする
     let count = board.count();
+    if (64 - (count.black + count.white) < 6) {
+        gamemode.black = COM_PLAYER;
+        gamemode.white = COM_PLAYER;
+    }
+
     let result = search(
         new Board(
             {
@@ -94,7 +89,7 @@ function game(board, gamemode, move, depth) {
 
 function main() {
     let depth = 0;
-    e.load(`model`);
+    //e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -135,8 +130,8 @@ function main() {
                         score = -score;
                     }
                     //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
-                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, score);
-                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, (resultScore.black - resultScore.white + score) / 2);
+                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, score);
+                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, (resultScore.black - resultScore.white + score) / 2);
                 }
             }
             //e.train(board, board.color, resultScore.black - resultScore.white);
