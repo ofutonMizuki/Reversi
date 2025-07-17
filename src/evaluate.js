@@ -2,7 +2,7 @@ import { NeuralNetwork } from "./nn.js";
 import { BLACK } from "./board.js";
 
 class Eval {
-    d = 16;
+    d = 1;
     constructor() {
         this.neuralNetworks = new Array();
         for (let i = 0; i < 65 / this.d; i++) {
