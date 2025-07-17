@@ -36,12 +36,13 @@ class NeuralNetwork {
         for (let i = 1; i < this.weights.length; i++) {
             this.weights[i].randomize(this.weights[i].cols);
         }
+        // バイアスの初期値は0
         for (let i = 0; i < this.biases.length; i++) {
-            this.biases[i].randomize(1);
+            this.biases[i].randomize(1); // 0で初期化したい場合は this.biases[i] = new Matrix(this.biases[i].rows, this.biases[i].cols); でもOK
         }
 
         // 学習率（さらに発散抑制のため低めに）
-        this.learningRate = 0.000001;
+        this.learningRate = 0.0001;
 
         // Adamオプティマイザのパラメータ
         this.beta1 = 0.9;
@@ -62,9 +63,8 @@ class NeuralNetwork {
      * @param {number} x 入力値
      * @return {number} ReLU関数の出力値
      */
-    // ClippedReLU: 0～1の範囲でクリップ
     relu(x) {
-        return Math.max(0, Math.min(1, x));
+        return Math.max(0.001 * x, x);
     }
 
     /**
@@ -73,9 +73,8 @@ class NeuralNetwork {
      * @param {number} y ReLU関数の出力値
      * @return {number} ReLU関数の微分の出力値
      */
-    // ClippedReLUの微分
     drelu(y) {
-        return (y > 0 && y < 1) ? 1 : 0;
+        return (y > 0) ? 1 : 0.001;
     }
 
     /**
@@ -108,29 +107,19 @@ class NeuralNetwork {
         // 入力値をMatrixオブジェクトに変換
         let inputs = Matrix.fromArray(input_array);
 
-        // 隠れ層の計算（残差接続は同じノード数の層のみ）
+        // 隠れ層の計算（通常の多層パーセプトロン）
         let hidden = Matrix.multiply(this.weights[0], inputs);
         hidden.add(this.biases[0]);
         hidden.map(this.relu);
-        let prev = hidden;
-
         for (let i = 1; i < this.hiddenLayers.length; i++) {
-            let h = Matrix.multiply(this.weights[i], prev);
-            // h.add(this.biases[i]);
-            h.map(this.relu);
-            // 残差接続：前層とノード数が同じ場合のみスケール1で加算
-            if (h.rows === prev.rows && h.cols === prev.cols) {
-                let scaled = Matrix.map(prev, x => x * 1);
-                h.add(scaled);
-            }
-            prev = h;
+            hidden = Matrix.multiply(this.weights[i], hidden);
+            hidden.add(this.biases[i]);
+            hidden.map(this.relu);
         }
-        hidden = prev;
 
         // 出力層の計算（恒等関数）
         let output = Matrix.multiply(this.weights[this.weights.length - 1], hidden);
         output.add(this.biases[this.biases.length - 1]);
-        // 恒等関数なので何も適用しない
 
         // 出力値を配列に変換して返す
         return output.toArray();
@@ -147,7 +136,7 @@ class NeuralNetwork {
         let inputs = Matrix.fromArray(input_array);
         let targets = Matrix.fromArray(target_array);
 
-        // 隠れ層の計算（残差接続は同じノード数の層のみ）
+        // 隠れ層の計算（通常の多層パーセプトロン）
         let hiddens = [];
         let h0 = Matrix.multiply(this.weights[0], inputs);
         h0.add(this.biases[0]);
@@ -158,18 +147,12 @@ class NeuralNetwork {
             let h = Matrix.multiply(this.weights[i], hiddens[i - 1]);
             h.add(this.biases[i]);
             h.map(this.relu);
-            // 残差接続：前層とノード数が同じ場合のみスケール0.1で加算
-            if (h.rows === hiddens[i - 1].rows && h.cols === hiddens[i - 1].cols) {
-                let scaled = Matrix.map(hiddens[i - 1], x => x * 1);
-                h.add(scaled);
-            }
             hiddens.push(h);
         }
 
         // 出力層の計算（恒等関数）
         let outputs = Matrix.multiply(this.weights[this.weights.length - 1], hiddens[hiddens.length - 1]);
         outputs.add(this.biases[this.biases.length - 1]);
-        // 恒等関数なので何も適用しない
 
         // タイムステップをインクリメント
         this.t++;
@@ -219,6 +202,17 @@ class NeuralNetwork {
      * @param {Matrix} bias_deltas バイアスの勾配
      */
     updateWithAdam(i, weight_deltas, bias_deltas) {
+        // バイアスの更新
+        this.m_biases[i].multiply(this.beta1);
+        this.m_biases[i].add(Matrix.map(bias_deltas, x => x * (1 - this.beta1)));
+        this.v_biases[i].multiply(this.beta2);
+        this.v_biases[i].add(Matrix.map(bias_deltas, x => x * x * (1 - this.beta2)));
+
+        let m_hat_b = Matrix.map(this.m_biases[i], x => x / (1 - Math.pow(this.beta1, this.t)));
+        let v_hat_b = Matrix.map(this.v_biases[i], x => x / (1 - Math.pow(this.beta2, this.t)));
+
+        let delta_b = Matrix.map(v_hat_b, (val, r, c) => this.learningRate * m_hat_b.data[r][c] / (Math.sqrt(val) + this.epsilon));
+        this.biases[i].add(delta_b);
         // 重みの更新
         this.m_weights[i].multiply(this.beta1);
         this.m_weights[i].add(Matrix.map(weight_deltas, x => x * (1 - this.beta1)));
@@ -231,17 +225,6 @@ class NeuralNetwork {
         let delta_w = Matrix.map(v_hat_w, (val, r, c) => this.learningRate * m_hat_w.data[r][c] / (Math.sqrt(val) + this.epsilon));
         this.weights[i].add(delta_w);
 
-        // バイアスの更新
-        this.m_biases[i].multiply(this.beta1);
-        this.m_biases[i].add(Matrix.map(bias_deltas, x => x * (1 - this.beta1)));
-        this.v_biases[i].multiply(this.beta2);
-        this.v_biases[i].add(Matrix.map(bias_deltas, x => x * x * (1 - this.beta2)));
-
-        let m_hat_b = Matrix.map(this.m_biases[i], x => x / (1 - Math.pow(this.beta1, this.t)));
-        let v_hat_b = Matrix.map(this.v_biases[i], x => x / (1 - Math.pow(this.beta2, this.t)));
-
-        let delta_b = Matrix.map(v_hat_b, (val, r, c) => this.learningRate * m_hat_b.data[r][c] / (Math.sqrt(val) + this.epsilon));
-        this.biases[i].add(delta_b);
     }
 
     /**
@@ -320,7 +303,7 @@ class Matrix {
      */
     randomize(fan_in) {
         // He初期化: N(0, sqrt(2/fan_in)) 
-        const std = Math.sqrt(2 / (fan_in || 1)) * 0.01;
+        const std = Math.sqrt(2 / (fan_in || 1)) * 0.1;
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
                 // Box-Muller法で正規分布に従う乱数を生成
