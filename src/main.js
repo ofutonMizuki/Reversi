@@ -89,7 +89,7 @@ function game(board, gamemode, move, depth) {
 
 function main() {
     let depth = 0;
-    //e.load(`model`);
+    e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -110,7 +110,7 @@ function main() {
         for (let i = 0; i < 10; i++) {
             resultArray = [];
             let gamemode = { black: RANDOM_PLAYER, white: RANDOM_PLAYER };
-            let depth = 1;
+            let depth = 1 + Math.floor(Math.random() * 2);
             let board = new Board();
             let move = { x: -1, y: -1 };
             let resultScore = game(board, gamemode, move, Number(depth));
@@ -139,7 +139,7 @@ function main() {
         }
         resultArray = [];
         let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-        let depth = 3;
+        let depth = 2;
         let board = new Board();
         let move = { x: -1, y: -1 };
         let resultScore = game(board, gamemode, move, Number(depth));
