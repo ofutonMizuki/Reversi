@@ -1,6 +1,8 @@
+
 import { Board, BLACK, BitBoard } from './board.js';
 import { search } from './search.js';
 import { Eval } from './evaluate.js';
+import { Worker } from 'worker_threads';
 
 const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
@@ -27,10 +29,10 @@ function game(board, gamemode, move, depth) {
 
     //もし終盤なら探索を深くする
     let count = board.count();
-    if (64 - (count.black + count.white) < 6) {
-        gamemode.black = COM_PLAYER;
-        gamemode.white = COM_PLAYER;
-    }
+    // if (64 - (count.black + count.white) < 6) {
+    //     gamemode.black = COM_PLAYER;
+    //     gamemode.white = COM_PLAYER;
+    // }
 
     let result = search(
         new Board(
@@ -87,9 +89,9 @@ function game(board, gamemode, move, depth) {
     return game(board, gamemode, move, depth);
 }
 
-function main() {
+async function main() {
     let depth = 0;
-    e.load(`model`);
+    //e.load(`model`);
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -106,48 +108,69 @@ function main() {
     // game(board, gamemode, move, Number(depth))
     // console.dir(resultArray);
 
+    const NUM_WORKERS = 12; // 並列数はCPUコア数などに応じて調整
     while (true) {
-        for (let i = 0; i < 10; i++) {
-            resultArray = [];
-            let gamemode = { black: RANDOM_PLAYER, white: RANDOM_PLAYER };
-            let depth = 1 + Math.floor(Math.random() * 2);
-            let board = new Board();
-            let move = { x: -1, y: -1 };
-            let resultScore = game(board, gamemode, move, Number(depth));
-            let result = 0;
-            if (resultScore.black > resultScore.white) {
-                result = 1;
-            } else if (resultScore.black < resultScore.white) {
-                result = -1;
-            }
+        let workerPromises = [];
+        const NUM_GAMES_PER_WORKER = 4; // 1ワーカーあたりの局数
+        for (let i = 0; i < NUM_WORKERS; i++) {
+            let depth = 4;
+            workerPromises.push(new Promise((resolve, reject) => {
+                const worker = new Worker('./src/worker.js', {
+                    workerData: { depth, numGames: NUM_GAMES_PER_WORKER }
+                });
+                worker.on('message', resolve);
+                worker.on('error', reject);
+                worker.on('exit', (code) => {
+                    if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
+                });
+            }));
+        }
 
-            for (let r = 0; r < 4; r++) {
-                for (let j = 0; j < resultArray.length; j++) {
-                    let score = resultArray[j].score;
-                    if (resultArray[j].board.color == BLACK) {
-                        score = score;
-                    } else {
-                        score = -score;
+        let results;
+        try {
+            results = await Promise.all(workerPromises);
+        } catch (err) {
+            console.error('Worker error:', err);
+            continue;
+        }
+
+        // results: [[{ resultArray, resultScore, result }, ...], ...]
+        for (const workerResults of results) {
+            for (const res of workerResults) {
+                for (let r = 0; r < 4; r++) {
+                    for (let j = 0; j < res.resultArray.length; j++) {
+                        let score = res.resultArray[j].score;
+                        if (res.resultArray[j].board.color == BLACK) {
+                            score = score;
+                        } else {
+                            score = -score;
+                        }
+                        const boardObj = res.resultArray[j % res.resultArray.length].board;
+                        const boardInstance = new Board({
+                            black: new BitBoard(boardObj.black.board),
+                            white: new BitBoard(boardObj.white.board),
+                            color: boardObj.color,
+                            posBoard: new BitBoard(boardObj.posBoard.board)
+                        });
+                        await e.train(boardInstance.rotate(), boardInstance.color, (score + res.resultScore.black - res.resultScore.white) / 2);
+                        //e.train(boardInstance.rotate(), boardInstance.color, score);
                     }
-                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, resultScore.black - resultScore.white);
-                    e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, score);
-                    //e.train(resultArray[j % resultArray.length].board.rotate(), resultArray[j % resultArray.length].board.color, (resultScore.black - resultScore.white + score) / 2);
                 }
             }
-            //e.train(board, board.color, resultScore.black - resultScore.white);
-
         }
+
+        // 1回ごとにCOM_PLAYER同士で評価
         resultArray = [];
         let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
-        let depth = 2;
+        let depth = 3;
         let board = new Board();
         let move = { x: -1, y: -1 };
         let resultScore = game(board, gamemode, move, Number(depth));
         for (let i = 0; i < resultArray.length; i++) {
             console.log(`score: ${resultArray[i].board.color == BLACK ? resultArray[i].score : -resultArray[i].score}, black: ${resultArray[i].board.count().black}, white: ${resultArray[i].board.count().white}`);
         }
-        //console.dir(resultArray);
         e.save(`model`);
+        // 必要なら await new Promise(res => setTimeout(res, 100)); などで休止も可能
     }
 }
 
