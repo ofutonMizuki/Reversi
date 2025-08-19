@@ -6,6 +6,13 @@ const MANUAL_PLAYER = 1, COM_PLAYER = 2, RANDOM_PLAYER = 3;
 
 function runGames(depth, numGames) {
     let allResults = [];
+    // Create Eval once per worker and try to load existing model
+    const e = new Eval();
+    try {
+        e.load('model');
+    } catch (err) {
+        console.warn('Worker: model load failed or no model present, continuing with fresh Eval.');
+    }
     for (let n = 0; n < numGames; n++) {
         let resultArray = [];
         let gamemode = { black: RANDOM_PLAYER, white: RANDOM_PLAYER };
@@ -29,7 +36,7 @@ function runGames(depth, numGames) {
                     color: board.color,
                     posBoard: new BitBoard(board.posBoard.board)
                 }), (64 - (count.black + count.white) < 6) ? 6 : depth,
-                new Eval()
+                e
             );
             switch ((board.color == BLACK) ? gamemode.black : gamemode.white) {
                 case COM_PLAYER:
