@@ -8,7 +8,7 @@ class Eval {
         for (let i = 0; i < 65 / this.d; i++) {
             this.neuralNetworks.push(new NeuralNetwork(192, [16, 16, 16, 16], 1));
         }
-        console.dir(this.neuralNetworks);
+        //console.dir(this.neuralNetworks);
     }
 
     evaluate(board, color) {

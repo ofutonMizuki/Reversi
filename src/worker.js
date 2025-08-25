@@ -19,7 +19,7 @@ function runGames(depth, numGames) {
         let board = new Board();
         let move = { x: -1, y: -1 };
 
-        function game(board, gamemode, move, depth) {
+        function game(board, gamemode, move, depth, ply) {
             board.getPosBoard();
             if (board.isPass()) {
                 board.changeColor();
@@ -29,20 +29,36 @@ function runGames(depth, numGames) {
                 }
             }
             let count = board.count();
+            // Determine if we're still in the opening (first 20 played moves)
+            const isOpening = (typeof ply === 'number') ? (ply < 20) : true;
+
+            // Only run the search when not in the opening phase. When in the opening,
+            // we'll pick a random legal move instead to force randomness for the first 20 moves.
             let result = search(
-                new Board({
-                    black: new BitBoard(board.black.board),
-                    white: new BitBoard(board.white.board),
-                    color: board.color,
-                    posBoard: new BitBoard(board.posBoard.board)
-                }), (64 - (count.black + count.white) < 6) ? 6 : depth,
-                e
-            );
+                    new Board({
+                        black: new BitBoard(board.black.board),
+                        white: new BitBoard(board.white.board),
+                        color: board.color,
+                        posBoard: new BitBoard(board.posBoard.board)
+                    }), (64 - (count.black + count.white) < 6) ? 6 : depth,
+                    e
+                );
+
             switch ((board.color == BLACK) ? gamemode.black : gamemode.white) {
                 case COM_PLAYER:
-                    move.x = result.position.x;
-                    move.y = result.position.y;
-                    resultArray.push({ board: board.clone(), score: result.score });
+                    if (isOpening) {
+                        // pick a random legal move during opening instead of using COM
+                        while (1) {
+                            move.x = Math.floor(Math.random() * 8);
+                            move.y = Math.floor(Math.random() * 8);
+                            if (board.isPos(move)) break;
+                        }
+                        resultArray.push({ board: board.clone(), score: result.score });
+                    } else {
+                        move.x = result.position.x;
+                        move.y = result.position.y;
+                        resultArray.push({ board: board.clone(), score: result.score });
+                    }
                     break;
                 case RANDOM_PLAYER:
                     while (1) {
@@ -50,16 +66,17 @@ function runGames(depth, numGames) {
                         move.y = Math.floor(Math.random() * 8);
                         if (board.isPos(move)) break;
                     }
-                    resultArray.push({ board: board.clone(), score: result.score });
+                    resultArray.push({ board: board.clone(), score: result.score});
                     break;
                 default:
                     break;
             }
             board.reverse(move);
-            return game(board, gamemode, move, depth);
+            // Only increment ply when an actual move was played (not when passing).
+            return game(board, gamemode, move, depth, (typeof ply === 'number' ? ply + 1 : 1));
         }
 
-        let resultScore = game(board, gamemode, move, Number(depth));
+        let resultScore = game(board, gamemode, move, Number(depth), 0);
         let result = 0;
         if (resultScore.black > resultScore.white) {
             result = 1;

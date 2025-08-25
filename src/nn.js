@@ -30,19 +30,21 @@ class NeuralNetwork {
         this.weights.push(new Matrix(this.outputNodes, this.hiddenLayers[this.hiddenLayers.length - 1]));
         this.biases.push(new Matrix(this.outputNodes, 1));
 
-        // 重みとバイアスの初期値をHe初期化で設定
-        // 各重み行列のfan_in（入力ノード数）を渡す
-        this.weights[0].randomize(this.inputNodes);
-        for (let i = 1; i < this.weights.length; i++) {
-            this.weights[i].randomize(this.weights[i].cols);
+        // 重み初期化: 全層tanhのため Xavier(Glorot) 初期化 (Normal) へ変更
+        // std = sqrt(2 / (fan_in + fan_out))
+        //this.weights[0].randomize(this.inputNodes, this.hiddenLayers[0], 'xavier');
+        for (let i = 1; i < this.hiddenLayers.length; i++) {
+            this.weights[i].randomize(this.hiddenLayers[i - 1], this.hiddenLayers[i], 'xavier');
         }
-        // バイアスの初期値は0
+        // 最後の出力層
+        this.weights[this.weights.length - 1].randomize(this.hiddenLayers[this.hiddenLayers.length - 1], this.outputNodes, 'xavier');
+        // バイアスは 0 初期化（Adam でバイアスシフトが自然に学習される / 収束安定性向上）
         for (let i = 0; i < this.biases.length; i++) {
-            this.biases[i].randomize(1); // 0で初期化したい場合は this.biases[i] = new Matrix(this.biases[i].rows, this.biases[i].cols); でもOK
+            this.biases[i] = new Matrix(this.biases[i].rows, this.biases[i].cols);
         }
 
         // 学習率（さらに発散抑制のため低めに）
-        this.learningRate = 0.0001;
+        this.learningRate = 0.00001;
 
         // Adamオプティマイザのパラメータ
         this.beta1 = 0.9;
@@ -55,6 +57,9 @@ class NeuralNetwork {
         this.v_weights = this.weights.map(w => new Matrix(w.rows, w.cols));
         this.m_biases = this.biases.map(b => new Matrix(b.rows, b.cols));
         this.v_biases = this.biases.map(b => new Matrix(b.rows, b.cols));
+
+        // 学習ステップ表示用設定
+        this.stepLogging = { enabled: false, interval: 100 }; // デフォルト非表示
     }
 
     /**
@@ -107,19 +112,20 @@ class NeuralNetwork {
         // 入力値をMatrixオブジェクトに変換
         let inputs = Matrix.fromArray(input_array);
 
-        // 隠れ層の計算（通常の多層パーセプトロン）
+        // 隠れ層の計算（全層 tanh）
         let hidden = Matrix.multiply(this.weights[0], inputs);
         hidden.add(this.biases[0]);
-        hidden.map(this.relu);
+        hidden.map(this.tanh);
         for (let i = 1; i < this.hiddenLayers.length; i++) {
             hidden = Matrix.multiply(this.weights[i], hidden);
             hidden.add(this.biases[i]);
-            hidden.map(this.relu);
+            hidden.map(this.tanh);
         }
 
-        // 出力層の計算（恒等関数）
+        // 出力層の計算（tanh）
         let output = Matrix.multiply(this.weights[this.weights.length - 1], hidden);
         output.add(this.biases[this.biases.length - 1]);
+        output.map(this.tanh);
 
         // 出力値を配列に変換して返す
         return output.toArray();
@@ -132,66 +138,73 @@ class NeuralNetwork {
      * @param {number[]} target_array 目標値の配列
      */
     train(input_array, target_array) {
-        // 入力値と目標値をMatrixオブジェクトに変換
-        let inputs = Matrix.fromArray(input_array);
-        let targets = Matrix.fromArray(target_array);
+        // 単一サンプル学習（オンライン学習）
+        const inputs = Matrix.fromArray(input_array);      // a0
+        const targets = Matrix.fromArray(target_array);
 
-        // 隠れ層の計算（通常の多層パーセプトロン）
-        let hiddens = [];
-        let h0 = Matrix.multiply(this.weights[0], inputs);
-        h0.add(this.biases[0]);
-        h0.map(this.relu);
-        hiddens.push(h0);
-
-        for (let i = 1; i < this.hiddenLayers.length; i++) {
-            let h = Matrix.multiply(this.weights[i], hiddens[i - 1]);
-            h.add(this.biases[i]);
-            h.map(this.relu);
-            hiddens.push(h);
+        // 順伝播: 各層の活性を保存
+        const activations = [inputs]; // a0 ... aL
+        // 隠れ層 (tanh)
+        for (let i = 0; i < this.hiddenLayers.length; i++) {
+            let z = Matrix.multiply(this.weights[i], activations[activations.length - 1]); // W_i * a_{i}
+            z.add(this.biases[i]);
+            z.map(this.tanh); // a_{i+1}
+            activations.push(z);
         }
+        // 出力層（tanh）
+        let output = Matrix.multiply(this.weights[this.weights.length - 1], activations[activations.length - 1]);
+        output.add(this.biases[this.biases.length - 1]);
+        output.map(this.tanh);
 
-        // 出力層の計算（恒等関数）
-        let outputs = Matrix.multiply(this.weights[this.weights.length - 1], hiddens[hiddens.length - 1]);
-        outputs.add(this.biases[this.biases.length - 1]);
-
-        // タイムステップをインクリメント
+        // タイムステップ更新（Adam）
         this.t++;
-
-        // 出力層の誤差
-        let output_errors = Matrix.subtract(targets, outputs);
-
-        // 隠れ層の誤差 (逆伝播)
-        let hidden_errors = [];
-        hidden_errors.unshift(Matrix.multiply(Matrix.transpose(this.weights[this.weights.length - 1]), output_errors));
-
-        for (let i = this.hiddenLayers.length - 1; i > 0; i--) {
-            hidden_errors.unshift(Matrix.multiply(Matrix.transpose(this.weights[i]), hidden_errors[0]));
+        if (this.stepLogging.enabled && (this.t % this.stepLogging.interval === 0)) {
+            console.log(`[NN] step=${this.t}`);
         }
 
-        // 重みとバイアスの更新 (出力層)
-        // 恒等関数の微分は1
-        let gradients_ho = Matrix.map(outputs, () => 1);
-        gradients_ho.multiply(output_errors);
-        let hidden_t = Matrix.transpose(hiddens[hiddens.length - 1]);
-        let weights_ho_deltas = Matrix.multiply(gradients_ho, hidden_t);
-        this.updateWithAdam(this.weights.length - 1, weights_ho_deltas, gradients_ho);
+        // 出力層デルタ（tanh: 負勾配 = (targets - y) * (1 - y^2)）
+        const negGradOut = Matrix.subtract(targets, output); // targets - y
+        let delta = Matrix.map(output, (y, r, c) => negGradOut.data[r][c] * this.dtanh(y));
 
+        // 出力層更新
+        const lastHiddenT = Matrix.transpose(activations[activations.length - 1]);
+        const gradW_out = Matrix.multiply(delta, lastHiddenT); // (targets - output) * a_last^T
+        this.updateWithAdam(this.weights.length - 1, gradW_out, delta);
 
-        // 重みとバイアスの更新 (隠れ層)
-        for (let i = this.hiddenLayers.length - 1; i > 0; i--) {
-            let gradients_ih = Matrix.map(hiddens[i], this.drelu);
-            gradients_ih.multiply(hidden_errors[i]);
-            let inputs_t = Matrix.transpose(hiddens[i - 1]);
-            let weights_ih_deltas = Matrix.multiply(gradients_ih, inputs_t);
-            this.updateWithAdam(i, weights_ih_deltas, gradients_ih);
+        // 逆伝播（隠れ層）
+        // ここでの delta は「負勾配（targets - output）」が伝搬される形。
+        for (let layer = this.hiddenLayers.length - 1; layer >= 0; layer--) {
+            // 次層（直後）の delta を使って現在層の delta を計算
+            // delta_l = (W_{l+1}^T * delta_{l+1}) .* f'(a_l)
+            const W_next_T = Matrix.transpose(this.weights[layer + 1]);
+            let delta_prev = Matrix.multiply(W_next_T, delta); // まだ活性微分を掛けていない
+            const a_l = activations[layer + 1]; // 隠れ層出力（relu後）
+            // f'(a_l) を掛ける（tanh: 1 - a_l^2）
+            delta_prev = Matrix.map(a_l, (val, r, c) => this.dtanh(val) * delta_prev.data[r][c]);
+
+            // 勾配（負勾配方向）: (targets - output) が伝播しているので updateWithAdam で加算すれば descent
+            const a_lm1_T = Matrix.transpose(activations[layer]);
+            const gradW = Matrix.multiply(delta_prev, a_lm1_T);
+            this.updateWithAdam(layer, gradW, delta_prev);
+
+            delta = delta_prev; // 次ループへ
         }
+    }
 
-        // 重みとバイアスの更新 (入力層 - 最初の隠れ層)
-        let gradients_ih = Matrix.map(hiddens[0], this.drelu);
-        gradients_ih.multiply(hidden_errors[0]);
-        let inputs_t = Matrix.transpose(inputs);
-        let weights_ih_deltas = Matrix.multiply(gradients_ih, inputs_t);
-        this.updateWithAdam(0, weights_ih_deltas, gradients_ih);
+    // 現在の学習ステップ（Adam内部タイムステップ）を返す
+    getStep() {
+        return this.t;
+    }
+
+    // ステップ数ログ出力を有効化（interval ステップ毎）
+    enableStepLogging(interval = 100) {
+        this.stepLogging.enabled = true;
+        this.stepLogging.interval = Math.max(1, interval | 0);
+    }
+
+    // ステップ数ログ出力を無効化
+    disableStepLogging() {
+        this.stepLogging.enabled = false;
     }
 
     /**
@@ -283,12 +296,18 @@ class Matrix {
      * 行列の各要素をHe初期化でランダムな値に設定します。
      * @param {number} fan_in 入力ノード数
      */
-    randomize(fan_in) {
-        // He初期化: N(0, sqrt(2/fan_in)) 
-        const std = Math.sqrt(2 / (fan_in || 1)) * 0.1;
+    randomize(fan_in, fan_out, type = 'xavier') {
+        // Box-Muller法で正規分布 N(0,1) を生成し必要な標準偏差を掛ける
+        let std;
+        if (type === 'he') {
+            std = Math.sqrt(2 / (fan_in || 1));
+        } else if (type === 'xavier') { // Glorot normal (tanh向け)
+            std = Math.sqrt(2 / ((fan_in || 1) + (fan_out || fan_in || 1)));
+        } else { // フォールバック: Xavier
+            std = Math.sqrt(2 / ((fan_in || 1) + (fan_out || fan_in || 1)));
+        }
         for (let i = 0; i < this.rows; i++) {
             for (let j = 0; j < this.cols; j++) {
-                // Box-Muller法で正規分布に従う乱数を生成
                 let u = 1 - Math.random();
                 let v = 1 - Math.random();
                 let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
