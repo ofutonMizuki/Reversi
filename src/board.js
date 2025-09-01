@@ -11,6 +11,52 @@ for (let i = 0; i < 64; i++) {
     hash <<= 1n;
 }
 
+// Zobrist hashing
+// Deterministic SplitMix64 to generate 64-bit keys
+let __z_seed = 0x9e3779b97f4a7c15n;
+function splitmix64() {
+    let z = (__z_seed += 0x9e3779b97f4a7c15n);
+    z = (z ^ (z >> 30n)) * 0xbf58476d1ce4e5bn;
+    z = (z ^ (z >> 27n)) * 0x94d049bb133111ebn;
+    return z ^ (z >> 31n);
+}
+
+const ZOBRIST = {
+    black: new Array(64),
+    white: new Array(64),
+    side: 0n
+};
+for (let i = 0; i < 64; i++) {
+    ZOBRIST.black[i] = splitmix64();
+}
+for (let i = 0; i < 64; i++) {
+    ZOBRIST.white[i] = splitmix64();
+}
+ZOBRIST.side = splitmix64();
+
+function computeZobristHash(board) {
+    let h = 0n;
+    // mask scans from MSB to LSB (same as cr2bitboard mapping)
+    let mask = 0x8000000000000000n;
+    for (let i = 0; i < 64; i++) {
+        if (board.black.board & mask) h ^= ZOBRIST.black[i];
+        else if (board.white.board & mask) h ^= ZOBRIST.white[i];
+        mask >>= 1n;
+    }
+    if (board.color === BLACK) h ^= ZOBRIST.side;
+    return h;
+}
+
+// Get MSB-first index [0..63] for a single-bit mask
+function bitIndexFromMask(mask) {
+    // trailing zeros count using same TABLE as BitBoard
+    if (mask === 0n) return -1;
+    let y = (mask & -mask);
+    let i = ((y * 0x03F566ED27179461n) >> 58n);
+    const tz = TABLE[i];
+    return 63 - tz;
+}
+
 class BitBoard {
     constructor(board = 0x00n) {
         this.board = board;
@@ -112,12 +158,14 @@ class Board {
             this.posBoard = new BitBoard();
 
             this.getPosBoard();
+            this.zkey = computeZobristHash(this);
         }
         else {
             this.black = board.black.clone();
             this.white = board.white.clone();
             this.color = board.color;
             this.posBoard = board.posBoard.clone();
+            this.zkey = board.zkey != null ? board.zkey : computeZobristHash(this);
         }
     }
 
@@ -128,7 +176,20 @@ class Board {
         newBoard.white = this.white.clone();
         newBoard.color = this.color;
         newBoard.posBoard = this.posBoard.clone();
+    newBoard.zkey = this.zkey;
 
+        return newBoard;
+    }
+
+    // 盤面を90度回転した新しい Board を返す（学習用のデータ拡張）
+    rotate() {
+        let newBoard = new Board({ black: new BitBoard(), white: new BitBoard(), color: this.color, posBoard: new BitBoard() });
+        newBoard.black = this.black.clone().rotate();
+        newBoard.white = this.white.clone().rotate();
+        newBoard.posBoard = this.posBoard.clone().rotate();
+        // 手番は変えない
+        newBoard.color = this.color;
+    newBoard.zkey = computeZobristHash(newBoard);
         return newBoard;
     }
 
@@ -165,6 +226,8 @@ class Board {
         }
 
         this.getPosBoard();
+    // Only side-to-move changes
+    this.zkey ^= ZOBRIST.side;
     }
 
     //パスか確認
@@ -210,6 +273,35 @@ class Board {
             this.black.board ^= rev;
         }
 
+        // Incremental Zobrist update (before side-to-move toggle)
+        let z = this.zkey;
+        // placed stone index
+        const idxPlace = bitIndexFromMask(m.board);
+        if (this.color == BLACK) {
+            // flips: WHITE -> BLACK
+            let tmp = rev.board;
+            while (tmp) {
+                const lsb = tmp & -tmp;
+                const idx = bitIndexFromMask(lsb);
+                z ^= ZOBRIST.white[idx] ^ ZOBRIST.black[idx];
+                tmp ^= lsb;
+            }
+            // placed BLACK
+            if (idxPlace >= 0) z ^= ZOBRIST.black[idxPlace];
+        } else {
+            // flips: BLACK -> WHITE
+            let tmp = rev.board;
+            while (tmp) {
+                const lsb = tmp & -tmp;
+                const idx = bitIndexFromMask(lsb);
+                z ^= ZOBRIST.black[idx] ^ ZOBRIST.white[idx];
+                tmp ^= lsb;
+            }
+            // placed WHITE
+            if (idxPlace >= 0) z ^= ZOBRIST.white[idxPlace];
+        }
+        this.zkey = z;
+        // Side-to-move toggled inside changeColor (also updates posBoard)
         this.changeColor();
 
         return rev;
@@ -391,4 +483,9 @@ class Board {
 
         return rev.board;
     }
+}
+
+// Node.js から利用できるようにエクスポート（ブラウザでは無視される）
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { BitBoard, Board, BLACK, WHITE, SPACE, ZOBRIST, computeZobristHash };
 }
