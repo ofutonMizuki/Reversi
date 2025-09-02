@@ -132,6 +132,17 @@ class Board {
         return newBoard;
     }
 
+    // 盤面を90度回転した新しい Board を返す（学習用のデータ拡張）
+    rotate() {
+        let newBoard = new Board({ black: new BitBoard(), white: new BitBoard(), color: this.color, posBoard: new BitBoard() });
+        newBoard.black = this.black.clone().rotate();
+        newBoard.white = this.white.clone().rotate();
+        newBoard.posBoard = this.posBoard.clone().rotate();
+        // 手番は変えない
+        newBoard.color = this.color;
+        return newBoard;
+    }
+
     //指定した座標の色を教えてくれます
     getColor(position) {
         let x = position.x, y = position.y;
@@ -391,4 +402,9 @@ class Board {
 
         return rev.board;
     }
+}
+
+// Node.js から利用できるようにエクスポート（ブラウザでは無視される）
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { BitBoard, Board, BLACK, WHITE, SPACE };
 }
