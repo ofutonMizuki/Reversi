@@ -1,4 +1,6 @@
 const INFINITE_SCORE = 32768;
+// TT flags
+const TT_FLAG_EXACT = 0, TT_FLAG_LOWER = 1, TT_FLAG_UPPER = 2;
 // Node: 明示 import、ブラウザ: 先に読み込まれた board.js のグローバルを参照
 let SEARCH_BLACK_CONST = (typeof BLACK !== 'undefined') ? BLACK : undefined;
 let BoardCtor = (typeof Board !== 'undefined') ? Board : undefined;
@@ -54,7 +56,16 @@ function createNextBoard(board, position) {
 
 function search(_board, maxDepth, eval) {
     let board = new tBoard(_board);
-    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE, true);
+    // per-search context
+    const ctx = {
+        tt: new Map(), // key -> { depth, score, flag, bestMove }
+        killer: [], // killer[ply] = [{x,y}, {x,y}]
+        history: Object.create(null), // 'x,y' -> score
+        rootColor: board.color,
+        enablePVS: true,
+        enableLMR: true,
+    };
+    alphaBeta(board, maxDepth - 1, board.color, eval, -INFINITE_SCORE, INFINITE_SCORE, true, ctx);
 
     return {
         position: board.position,
@@ -62,8 +73,28 @@ function search(_board, maxDepth, eval) {
         numberOfNode: board.numberOfChildNode
     }
 }
+function posKey(board, rootColor) {
+    // include rootColor to keep TT safe within a single search orientation
+    return `${board.black.board.toString(16)}_${board.white.board.toString(16)}_${board.color}_${rootColor}`;
+}
 
-function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
+function moveKey(p) { return `${p.x},${p.y}`; }
+
+function scoreMoveHeuristic(ply, p, ctx) {
+    let s = 0;
+    const killers = ctx.killer[ply] || [];
+    if (killers[0] && killers[0].x === p.x && killers[0].y === p.y) s += 1e6;
+    if (killers[1] && killers[1].x === p.x && killers[1].y === p.y) s += 9e5;
+    const hk = moveKey(p);
+    s += (ctx.history[hk] || 0);
+    return s;
+}
+
+function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag, ctx) {
+    const alphaOrig = alpha;
+    const ply = board.n;
+    let bestMoveLocal = null;
+
     //もしパスならターンチェンジ
     if (board.isPass()) {
         board.changeColor();
@@ -94,42 +125,76 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
         return board.score;
     }
 
+    // TT 参照
+    const key = posKey(board, ctx.rootColor);
+    const remDepth = maxDepth - board.n; // 残り深さ（同一ノードでの基準）
+    const ttEntry = ctx.tt.get(key);
+    if (ttEntry && ttEntry.depth >= remDepth) {
+        if (ttEntry.flag === TT_FLAG_EXACT) return ttEntry.score;
+        if (ttEntry.flag === TT_FLAG_LOWER && ttEntry.score >= beta) return ttEntry.score;
+        if (ttEntry.flag === TT_FLAG_UPPER && ttEntry.score <= alpha) return ttEntry.score;
+    }
+
     //合法手の生成
     let positionList = board.getNextPositionList();
     board.numberOfChildNode = positionList.length;
-    //ソートをする深さを設定(深さはなんとなくで設定)
-    const sortDepth = moFlag ? Math.floor(maxDepth / 1.5) : maxDepth;
+    // ムーブオーダリング
+    // 1) TTベストムーブを先頭へ 2) キラー/ヒストリーで降順
+    if (ttEntry && ttEntry.bestMove) {
+        const idx = positionList.findIndex(m => m.p.x === ttEntry.bestMove.x && m.p.y === ttEntry.bestMove.y);
+        if (idx > 0) {
+            const [mv] = positionList.splice(idx, 1);
+            positionList.unshift(mv);
+        }
+    }
+    positionList.sort((a, b) => scoreMoveHeuristic(ply, b.p, ctx) - scoreMoveHeuristic(ply, a.p, ctx));
 
     if (color == board.color) {
         let prevBoard = board.prev;
         board.score = -INFINITE_SCORE;
 
-        //枝刈りのためのソートをする場合ソート
-        if (board.n < sortDepth && moFlag) {
-            const cronedBoard = board.clone();
-            for (let i = 0; i < positionList.length; i++) {
-                cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
-            }
-
-            positionList.sort((a, b) => b.s - a.s);
-        }
-
         for (let i = 0; i < positionList.length; i++) {
-            board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
-            board.numberOfChildNode += board.next[i].numberOfChildNode;
+            const move = positionList[i].p;
+            const child = createNextBoard(board, move);
+            let score;
+            const late = (i >= 2) && ctx.enableLMR && (remDepth >= 3);
+            if (ctx.enablePVS && i > 0) {
+                // PVS: まず null-window。LMR で深さを 1 減らすことも。
+                const red = late ? 1 : 0;
+                score = alphaBeta(child, maxDepth - red, color, eval, alpha, alpha + 1, false, ctx);
+                if (score > alpha && score < beta) {
+                    // 再探索（フルウィンドウ）
+                    score = alphaBeta(child, maxDepth, color, eval, alpha, beta, moFlag, ctx);
+                }
+            } else {
+                // 通常探索（LMR考慮）
+                const red = late ? 1 : 0;
+                score = alphaBeta(child, maxDepth - red, color, eval, alpha, beta, moFlag, ctx);
+            }
+            board.numberOfChildNode += child.numberOfChildNode;
 
             if (board.score < score) {
                 board.score = score;
+                bestMoveLocal = move;
             }
             if (alpha < score) {
-                board.position = prevBoard == null ? Object.assign({}, board.next[i].position) : board.position;
+                board.position = prevBoard == null ? Object.assign({}, child.position) : board.position;
                 alpha = score;
             }
             if (alpha >= beta) {
                 //使わない配列は明示的に解放
                 board.next = [];
+                // killer & history 更新
+                ctx.killer[ply] = ctx.killer[ply] || [];
+                const km = ctx.killer[ply];
+                if (!km[0] || km[0].x !== move.x || km[0].y !== move.y) {
+                    km[1] = km[0];
+                    km[0] = move;
+                }
+                const hk = moveKey(move);
+                ctx.history[hk] = (ctx.history[hk] || 0) + (remDepth * remDepth + 1);
+                // TT 書き込み（下限境界）
+                ctx.tt.set(key, { depth: remDepth, score: alpha, flag: TT_FLAG_LOWER, bestMove: move });
                 return alpha;
             }
         }
@@ -138,32 +203,45 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
         let prevBoard = board.prev;
         board.score = INFINITE_SCORE;
 
-        //枝刈りのためのソートをする場合ソート
-        if (board.n < sortDepth && moFlag) {
-            const cronedBoard = board.clone();
-            for (let i = 0; i < positionList.length; i++) {
-                cronedBoard.next.push(createNextBoard(cronedBoard, positionList[i].p));
-                positionList[i].s = alphaBeta(cronedBoard.next[i], sortDepth - 1, color, eval, alpha, beta, false);
-            }
-
-            positionList.sort((a, b) => a.s - b.s);
-        }
-
         for (let i = 0; i < positionList.length; i++) {
-            board.next.push(createNextBoard(board, positionList[i].p));
-            let score = alphaBeta(board.next[i], maxDepth, color, eval, alpha, beta, moFlag);
-            board.numberOfChildNode += board.next[i].numberOfChildNode;
+            const move = positionList[i].p;
+            const child = createNextBoard(board, move);
+            let score;
+            const late = (i >= 2) && ctx.enableLMR && (remDepth >= 3);
+            if (ctx.enablePVS && i > 0) {
+                const red = late ? 1 : 0;
+                score = alphaBeta(child, maxDepth - red, color, eval, beta - 1, beta, false, ctx);
+                if (score > alpha && score < beta) {
+                    score = alphaBeta(child, maxDepth, color, eval, alpha, beta, moFlag, ctx);
+                }
+            } else {
+                const red = late ? 1 : 0;
+                score = alphaBeta(child, maxDepth - red, color, eval, alpha, beta, moFlag, ctx);
+            }
+            board.numberOfChildNode += child.numberOfChildNode;
 
             if (board.score > score) {
                 board.score = score;
+                bestMoveLocal = move;
             }
             if (beta > score) {
-                board.position = prevBoard == null ? Object.assign({}, board.next[i].position) : board.position;
+                board.position = prevBoard == null ? Object.assign({}, child.position) : board.position;
                 beta = score;
             }
             if (alpha >= beta) {
                 //使わない配列は明示的に解放
                 board.next = [];
+                // killer & history 更新
+                ctx.killer[ply] = ctx.killer[ply] || [];
+                const km = ctx.killer[ply];
+                if (!km[0] || km[0].x !== move.x || km[0].y !== move.y) {
+                    km[1] = km[0];
+                    km[0] = move;
+                }
+                const hk = moveKey(move);
+                ctx.history[hk] = (ctx.history[hk] || 0) + (remDepth * remDepth + 1);
+                // TT 書き込み（上限境界）
+                ctx.tt.set(key, { depth: remDepth, score: beta, flag: TT_FLAG_UPPER, bestMove: move });
                 return beta;
             }
         }
@@ -171,6 +249,11 @@ function alphaBeta(board, maxDepth, color, eval, alpha, beta, moFlag) {
 
     //使わない配列は明示的に解放
     board.next = [];
+    // TT 書き込み（EXACT または境界）
+    let flag = TT_FLAG_EXACT;
+    if (board.score <= alphaOrig) flag = TT_FLAG_UPPER; // fail-low
+    else if (board.score >= beta) flag = TT_FLAG_LOWER; // fail-high
+    ctx.tt.set(key, { depth: remDepth, score: board.score, flag, bestMove: bestMoveLocal || board.position });
     return board.score;
 }
 
