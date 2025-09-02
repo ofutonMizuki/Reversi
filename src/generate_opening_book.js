@@ -8,7 +8,6 @@ const path = require('path');
 const { Board } = require('./board.js');
 const { NNEval } = require('./evaluate.js');
 const { search } = require('./search.js');
-const { Worker } = require('worker_threads');
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -23,12 +22,6 @@ function parseArgs() {
     else if (a === '--model') { opt.model = next; i++; }
     else if (a === '--output') { opt.output = next; i++; }
     else if (a === '--no-symmetry') { opt.symmetry = false; }
-  else if (a === '--threads') { opt.threads = Number(next); i++; }
-  else if (a === '--useAspiration') { opt.useAspiration = true; }
-  else if (a === '--no-aspiration') { opt.useAspiration = false; }
-  else if (a === '--useTT') { opt.useTT = true; }
-  else if (a === '--no-tt') { opt.useTT = false; }
-  else if (a === '--aspDelta' || a === '--aspirationDelta') { opt.aspirationDelta = Number(next); i++; }
   }
   return Object.assign({
     maxPlies: 8,
@@ -38,10 +31,6 @@ function parseArgs() {
     model: path.join(process.cwd(), 'model.nn.json'),
     output: path.join(process.cwd(), 'opening_book.json'),
     symmetry: true,
-    threads: Math.max(1, require('os').cpus().length - 1),
-  useAspiration: true,
-  useTT: true,
-  aspirationDelta: 0.5,
   }, opt);
 }
 
@@ -109,38 +98,6 @@ async function main() {
 
   let visited = 0;
 
-  // Worker pool for scoring children in parallel
-  const workerPath = path.join(__dirname, 'book_worker.js');
-  const pool = Array.from({ length: Math.max(1, opt.threads|0) }, () => new Worker(workerPath));
-  const modelSnap = { hiddenSizes: evalr.hiddenSizes, W: evalr.W, b: evalr.b };
-  const defaultOptions = { useIterative: true, useAspiration: !!opt.useAspiration, useTT: !!opt.useTT, aspirationDelta: opt.aspirationDelta };
-  await Promise.all(pool.map(w => new Promise((res, rej) => {
-    w.setMaxListeners(0);
-    const onOk = (m) => { if (m && m.type === 'inited') { cleanup(); res(); } };
-    const onErr = (e) => { cleanup(); rej(e); };
-    function cleanup() { w.off('message', onOk); w.off('error', onErr); }
-    w.on('message', onOk);
-    w.on('error', onErr);
-    w.postMessage({ type: 'init', model: modelSnap, options: defaultOptions });
-  })));
-
-  async function scoreChildrenParallel(jobs, depth) {
-    // Split jobs roughly evenly across workers
-    const per = Math.ceil(jobs.length / pool.length);
-    const promises = pool.map((w, i) => new Promise((res, rej) => {
-      const slice = jobs.slice(i * per, (i + 1) * per);
-      if (slice.length === 0) return res([]);
-      const onMsg = (m) => { if (m && m.type === 'scored') { cleanup(); res(m.results); } };
-      const onErr = (e) => { cleanup(); rej(e); };
-      function cleanup() { w.off('message', onMsg); w.off('error', onErr); }
-      w.on('message', onMsg);
-      w.on('error', onErr);
-      w.postMessage({ type: 'scoreChildren', jobs: slice, depth, options: defaultOptions });
-    }));
-    const results = await Promise.all(promises);
-    return results.flat();
-  }
-
   while (queue.length > 0) {
     if (visited >= opt.maxPositions) break;
     const { board, ply } = queue.shift();
@@ -160,11 +117,14 @@ async function main() {
       continue;
     }
 
-  // Prepare parallel jobs for scoring children at depth-1
-  const children = posList.map(it => ({ move: it.p, child: applyMove(board, it.p) }));
-  const jobs = children.map((c, idx) => ({ idx, black: c.child.black.board.toString(), white: c.child.white.board.toString(), color: c.child.color }));
-  const results = await scoreChildrenParallel(jobs, Math.max(1, opt.searchDepth - 1));
-  const scored = results.map(r => ({ move: children[r.idx].move, score: -r.score, child: children[r.idx].child }));
+    // Score each child by deeper search; negate to parent perspective
+    const scored = [];
+    for (const it of posList) {
+      const child = applyMove(board, it.p);
+      const res = search(child, Math.max(1, opt.searchDepth - 1), evalr);
+      const parentScore = -res.score;
+      scored.push({ move: it.p, score: parentScore, child });
+    }
     scored.sort((a, b) => b.score - a.score);
 
     // Best move at this node (rotate into canonical orientation for storage)
@@ -196,7 +156,6 @@ async function main() {
     entries: book,
   }, null, 2));
   console.log(`[book] saved ${Object.keys(book).length} entries to ${opt.output}`);
-  pool.forEach(w => w.terminate());
 }
 
 if (require.main === module) {

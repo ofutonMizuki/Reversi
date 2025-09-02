@@ -60,12 +60,12 @@ async function game(board, gamemode, move, depth) {
 
             //もし終盤なら探索を深くする
             let count = board.count();
-            if (64 - (count.black + count.white) < depth) {
+            if (64 - (count.black + count.white) < depth * 2) {
                 //思考を別スレッドで開始する
                 searchWorker.postMessage(
                     {
                         board: board.clone(),
-                        maxDepth: Math.floor(depth)
+                        maxDepth: Math.floor(depth * 2)
                     }
                 );
             }
@@ -127,7 +127,7 @@ function main() {
 
     let url = new URL(window.location.href);
     let params = url.searchParams;
-    let depth = params.get("depth") ? params.get("depth") : 24;
+    let depth = params.get("depth") ? params.get("depth") : 8;
 
     //探索部のテスト用初期値 
     // board = new Board({
@@ -138,7 +138,7 @@ function main() {
     // });
 
     //ゲームモードの設定
-    let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
+    let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
 
     setTimeout(() => {
         //ゲームの開始

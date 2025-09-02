@@ -1,5 +1,5 @@
 // Self-play data generator worker
-// Receives: { games, depth, model, forceRandomPlies, endgameExtraDepth, endgameTrigger, epsilon, useIterative, useTT, useAspiration, aspirationDelta }
+// Receives: { games, depth, model, forceRandomPlies, endgameExtraDepth }
 // Sends: { samples: Array<{black:string,white:string,color:number,score:number}> }
 
 const { parentPort } = require('worker_threads');
@@ -17,15 +17,7 @@ function createEvalFromSnapshot(snap) {
     return e;
 }
 
-function gameSamples(board, depth, e, opts) {
-    const forceRandomPlies = opts.forceRandomPlies ?? 20;
-    const endgameExtraDepth = opts.endgameExtraDepth ?? 6;
-    const endgameTrigger = opts.endgameTrigger ?? 10;
-    const epsilon = opts.epsilon ?? 0.05;
-    const useIterative = !!opts.useIterative;
-    const useTT = !!opts.useTT;
-    const useAspiration = !!opts.useAspiration;
-    const aspirationDelta = opts.aspirationDelta ?? 0.5;
+function gameSamples(board, depth, e, forceRandomPlies = 20, endgameExtraDepth = 6) {
     const samples = [];
     // Ensure posBoard initialized
     board.getPosBoard();
@@ -43,14 +35,9 @@ function gameSamples(board, depth, e, opts) {
         const stones = cnt.black + cnt.white;
         const plies = stones - 4;
         const forceRandom = plies < forceRandomPlies;
-        const remain = 64 - stones;
-        const extra = (remain <= endgameTrigger) ? endgameExtraDepth : 0;
-        const isOpeningRandom = (plies < forceRandomPlies);
-        const randomByEps = (!isOpeningRandom && Math.random() < epsilon);
-        const shallow = (isOpeningRandom || randomByEps);
-        const maxDepth = shallow ? Math.max(1, Math.min(2, depth)) : (depth + extra);
+        const extra = (64 - stones) < endgameExtraDepth ? endgameExtraDepth : 0;
+        const maxDepth = depth + extra;
 
-        const options = { useIterative, useTT, useAspiration, aspirationDelta };
         const result = search(
             new Board({
                 black: new BitBoard(board.black.board),
@@ -59,11 +46,10 @@ function gameSamples(board, depth, e, opts) {
                 posBoard: new BitBoard(board.posBoard.board)
             }),
             maxDepth,
-            e,
-            options
+            e
         );
 
-        if (!(isOpeningRandom || randomByEps)) {
+        if (!forceRandom) {
             move.x = result.position.x;
             move.y = result.position.y;
         } else {
@@ -91,22 +77,14 @@ parentPort.on('message', (msg) => {
     if (!msg || msg.type !== 'generate') return;
     const games = msg.games || 1;
     const depth = msg.depth || 2;
-    const opts = {
-        forceRandomPlies: msg.forceRandomPlies ?? 20,
-        endgameExtraDepth: msg.endgameExtraDepth ?? 6,
-        endgameTrigger: msg.endgameTrigger ?? 10,
-        epsilon: msg.epsilon ?? 0.05,
-        useIterative: !!msg.useIterative,
-        useTT: !!msg.useTT,
-        useAspiration: !!msg.useAspiration,
-        aspirationDelta: msg.aspirationDelta ?? 0.5,
-    };
+    const forceRandomPlies = msg.forceRandomPlies ?? 20;
+    const endgameExtraDepth = msg.endgameExtraDepth ?? 6;
     const e = createEvalFromSnapshot(msg.model || {});
 
     const all = [];
     for (let g = 0; g < games; g++) {
         const board = new Board();
-        const { samples, result } = gameSamples(board, depth, e, opts);
+        const { samples, result } = gameSamples(board, depth, e, forceRandomPlies, endgameExtraDepth);
         const outcome = (result.black - result.white);
         for (const s of samples) s.outcome = outcome;
         all.push(...samples);
