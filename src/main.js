@@ -138,7 +138,7 @@ function main() {
     // });
 
     //ゲームモードの設定
-    let gamemode = { black: COM_PLAYER, white: COM_PLAYER };
+    let gamemode = { black: MANUAL_PLAYER, white: COM_PLAYER };
 
     setTimeout(() => {
         //ゲームの開始
