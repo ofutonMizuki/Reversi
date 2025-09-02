@@ -370,8 +370,72 @@ class NNEval {
         return { y, zs, as, n };
     }
 
+    // 入力ベクトル x と段階 n を直接指定して前向き計算
+    _forwardWithX(x, n) {
+        const sizes = this._layerSizes();
+        const L = sizes.length - 1;
+        const zs = new Array(L);
+        const as = new Array(L + 1);
+        as[0] = x;
+        for (let l = 0; l < L; l++) {
+            const Wl = this.W[n][l];
+            const bl = this.b[n][l];
+            const out = sizes[l + 1];
+            const inn = sizes[l];
+            const zl = new Float64Array(out);
+            const al = new Float64Array(out);
+            for (let o = 0; o < out; o++) {
+                let s = bl[o];
+                const row = Wl[o];
+                for (let i = 0; i < inn; i++) s += row[i] * as[l][i];
+                zl[o] = s;
+                al[o] = (l === L - 1) ? s : Math.tanh(s);
+            }
+            zs[l] = zl;
+            as[l + 1] = al;
+        }
+        const y = as[L][0];
+        return { y, zs, as, n };
+    }
+
     evaluate(board, color) {
         const { y } = this._forward(board);
+        return (color === board.color) ? y : -y;
+    }
+
+    // 検索側が保持する絶対チャネル特徴（BLACK/WHITE/EMPTY/BLACK_LEGAL/WHITE_LEGAL）から
+    // 手番視点（own/opponent/empty/ownLegal/oppLegal）の入力を構築して前向き計算。
+    evaluateFromAbs(absFeat, board, color) {
+        const C = this.inputChannels;
+        const x = new Float64Array(64 * C);
+        const ownIsBlack = (typeof EVAL_BLACK_CONST !== 'undefined') ? (board.color === EVAL_BLACK_CONST) : true;
+        // abs indices
+        const CH_BLACK = 0, CH_WHITE = 1, CH_EMPTY = 2, CH_BLEGAL = 3, CH_WLEGAL = 4;
+        for (let i = 0; i < 64; i++) {
+            const baseAbs = i * 5;
+            const base = i * C;
+            // stones
+            if (ownIsBlack) {
+                if (C >= 1 && absFeat[baseAbs + CH_BLACK]) x[base + 0] = 1;
+                if (C >= 2 && absFeat[baseAbs + CH_WHITE]) x[base + 1] = 1;
+            } else {
+                if (C >= 1 && absFeat[baseAbs + CH_WHITE]) x[base + 0] = 1;
+                if (C >= 2 && absFeat[baseAbs + CH_BLACK]) x[base + 1] = 1;
+            }
+            // empty
+            if (C >= 3 && absFeat[baseAbs + CH_EMPTY]) x[base + 2] = 1;
+            // legal own/opponent
+            if (C >= 4) {
+                const ownL = ownIsBlack ? absFeat[baseAbs + CH_BLEGAL] : absFeat[baseAbs + CH_WLEGAL];
+                if (ownL) x[base + 3] = 1;
+            }
+            if (C >= 5) {
+                const oppL = ownIsBlack ? absFeat[baseAbs + CH_WLEGAL] : absFeat[baseAbs + CH_BLEGAL];
+                if (oppL) x[base + 4] = 1;
+            }
+        }
+        const n = board.black.count() + board.white.count();
+        const { y } = this._forwardWithX(x, n);
         return (color === board.color) ? y : -y;
     }
 
